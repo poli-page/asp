@@ -5,8 +5,14 @@
     <Description>ASP.NET Core integration for the Poli Page .NET SDK — render PDFs as IResult / IActionResult, IExceptionHandler + middleware mapping PoliPageException to ProblemDetails, and a smoke endpoint for post-deploy verification.</Description>
     <PackageId>PoliPage.AspNetCore</PackageId>
     <PackageTags>polipage;pdf;aspnetcore;minimal-apis;mvc</PackageTags>
-    <!-- Enforce XML docs on every public symbol now (parent props silences CS1591 during scaffolding). -->
-    <NoWarn />
+    <!--
+      Enforce XML docs on every public symbol (parent props silences CS1591 during scaffolding).
+      SYSLIB1100/1101: the configuration source-gen binder warns about non-bindable properties on
+      PoliPageClientOptions (HttpClient, DownloadHttpClient, Logger, OnRetry, OnError — none are
+      sensible to populate from appsettings.json anyway). The generator falls back to a no-op for
+      those properties and binds the rest; the warnings are noise here.
+    -->
+    <NoWarn>SYSLIB1100;SYSLIB1101</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

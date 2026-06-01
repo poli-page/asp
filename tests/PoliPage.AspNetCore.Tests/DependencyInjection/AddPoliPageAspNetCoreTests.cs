@@ -156,4 +156,75 @@ public class AddPoliPageAspNetCoreTests
             d.ServiceType.FullName == "Microsoft.AspNetCore.Http.IProblemDetailsService")
             .Should().BeFalse();
     }
+
+    [Fact]
+    public void Binds_client_options_from_configuration_section()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["PoliPage:ApiKey"] = "pp_test_bound",
+                ["PoliPage:MaxRetries"] = "5",
+                ["PoliPage:RequestTimeout"] = "00:00:30",
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+
+        services.AddPoliPageAspNetCore(configuration.GetSection("PoliPage"));
+
+        using var provider = services.BuildServiceProvider();
+        var clientOptions = provider.GetRequiredService<IOptions<PoliPageClientOptions>>().Value;
+        clientOptions.ApiKey.Should().Be("pp_test_bound");
+        clientOptions.MaxRetries.Should().Be(5);
+        clientOptions.RequestTimeout.Should().Be(TimeSpan.FromSeconds(30));
+    }
+
+    [Fact]
+    public void Binds_aspnetcore_options_from_aspnetcore_subsection()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["PoliPage:ApiKey"] = "pp_test_x",
+                ["PoliPage:AspNetCore:ProblemDetailsTypeUri"] = "https://example.com/errors",
+                ["PoliPage:AspNetCore:SetNoSniffHeader"] = "false",
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+
+        services.AddPoliPageAspNetCore(configuration.GetSection("PoliPage"));
+
+        using var provider = services.BuildServiceProvider();
+        var aspnetOptions = provider.GetRequiredService<IOptions<PoliPageAspNetCoreOptions>>().Value;
+        aspnetOptions.ProblemDetailsTypeUri.Should().Be("https://example.com/errors");
+        aspnetOptions.SetNoSniffHeader.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Configuration_plus_callback_overload_applies_callback_after_binding()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["PoliPage:ApiKey"] = "pp_test_bound",
+                ["PoliPage:MaxRetries"] = "5",
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+
+        services.AddPoliPageAspNetCore(
+            configuration.GetSection("PoliPage"),
+            opts => opts.MaxRetries = 9);
+
+        using var provider = services.BuildServiceProvider();
+        var clientOptions = provider.GetRequiredService<IOptions<PoliPageClientOptions>>().Value;
+        clientOptions.ApiKey.Should().Be("pp_test_bound");
+        clientOptions.MaxRetries.Should().Be(9);
+    }
 }
