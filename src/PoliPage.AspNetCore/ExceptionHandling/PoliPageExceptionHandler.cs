@@ -1,16 +1,43 @@
+using System.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using PoliPage.AspNetCore.Internal;
 
 namespace PoliPage.AspNetCore.ExceptionHandling;
 
-// Placeholder so AddPoliPageAspNetCore can call services.AddExceptionHandler<PoliPageExceptionHandler>()
-// at the DI layer. TryHandleAsync returns false (let other handlers / the default 500 page take over)
-// until Task 12 implements the actual PoliPageException → ProblemDetails mapping.
-internal sealed class PoliPageExceptionHandler : IExceptionHandler
+internal sealed class PoliPageExceptionHandler(
+    PoliPageProblemDetailsFactory factory,
+    IProblemDetailsService problemDetailsService,
+    ILogger<PoliPageExceptionHandler> logger) : IExceptionHandler
 {
-    public ValueTask<bool> TryHandleAsync(
+    public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
         Exception exception,
         CancellationToken cancellationToken)
-        => ValueTask.FromResult(false);
+    {
+        ArgumentNullException.ThrowIfNull(httpContext);
+        if (exception is not PoliPageException poliEx)
+            return false;
+
+        if (httpContext.Response.HasStarted)
+        {
+            LogMessages.ExceptionAfterResponseStarted(logger, poliEx);
+            return false;
+        }
+
+        var problem = factory.Build(httpContext, poliEx);
+        httpContext.Response.StatusCode = problem.Status ?? StatusCodes.Status500InternalServerError;
+
+        Activity.Current?.SetStatus(ActivityStatusCode.Error, poliEx.Message);
+        if (problem.Extensions.TryGetValue("code", out var code) && code is not null)
+            Activity.Current?.AddTag("polipage.error.code", code);
+
+        return await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
+        {
+            HttpContext = httpContext,
+            ProblemDetails = problem,
+            Exception = exception,
+        }).ConfigureAwait(false);
+    }
 }
