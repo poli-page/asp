@@ -3,7 +3,10 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="PoliPage" Version="1.0.0-local" />
+    <!-- Aligned with the SDK's own Directory.Build.props which packs as 1.0.0. The local nuget source
+         (../sdk-csharp/artifacts/package/release) wins until nuget.org publishes PoliPage 1.0.0, at
+         which point removing nuget.config (Task 18.2) silently switches resolution to the registry. -->
+    <PackageVersion Include="PoliPage" Version="1.0.0" />
 
     <!-- Analyzers (match sdk-csharp set) -->
     <PackageVersion Include="Meziantou.Analyzer" Version="2.0.183" />

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>PoliPage.AspNetCore</AssemblyName>
+    <RootNamespace>PoliPage.AspNetCore</RootNamespace>
+    <Description>ASP.NET Core integration for the Poli Page .NET SDK — render PDFs as IResult / IActionResult, IExceptionHandler + middleware mapping PoliPageException to ProblemDetails, and a smoke endpoint for post-deploy verification.</Description>
+    <PackageId>PoliPage.AspNetCore</PackageId>
+    <PackageTags>polipage;pdf;aspnetcore;minimal-apis;mvc</PackageTags>
+    <!-- Enforce XML docs on every public symbol now (parent props silences CS1591 during scaffolding). -->
+    <NoWarn />
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="PoliPage" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Runtime: source-gen binder activates only when this package is referenced explicitly. -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+
+    <!-- HealthChecks integration deferred to v0.2 — see docs/sdk-surface-audit-2026-06-01.md §0.3. -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Build-time only: SourceLink ships the .pdb→GitHub mapping; analyzers gate quality. -->
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
+    <PackageReference Include="Meziantou.Analyzer" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" PrivateAssets="all" />
+    <PackageReference Include="Roslynator.Analyzers" PrivateAssets="all" />
+  </ItemGroup>
+</Project>
