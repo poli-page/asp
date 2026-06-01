@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>PoliPage.AspNetCore.ExampleApp</RootNamespace>
+    <AssemblyName>PoliPage.AspNetCore.ExampleApp</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <!--
+      Demo / sample code, not a library. Turn off the parent's library-grade gates so this
+      project doesn't impose XML doc requirements and AOT analyzer overhead on demo helpers.
+    -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591;IL2026;IL3050</NoWarn>
+    <IsAotCompatible>false</IsAotCompatible>
+    <UserSecretsId>polipage-aspnetcore-example-app</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\src\PoliPage.AspNetCore\PoliPage.AspNetCore.csproj" />
+  </ItemGroup>
+
+</Project>
