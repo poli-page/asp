@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  tfm: net8.0 }
+          - { os: ubuntu-latest,  tfm: net10.0 }
+          - { os: windows-latest, tfm: net8.0 }
+          - { os: windows-latest, tfm: net10.0 }
+          - { os: macos-latest,   tfm: net10.0 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: asp }
+
+      - uses: actions/checkout@v4
+        with:
+          repository: poli-page/sdk-csharp
+          path: sdk-csharp
+          ref: main
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Pack sdk-csharp into local source
+        run: dotnet pack sdk-csharp/PoliPage.sln -c Release -o sdk-csharp/artifacts/package/release
+
+      - name: Restore
+        if: hashFiles('asp/PoliPage.AspNetCore.sln') != ''
+        run: dotnet restore asp/PoliPage.AspNetCore.sln
+
+      - name: Format check
+        if: hashFiles('asp/.editorconfig') != ''
+        run: dotnet format asp/PoliPage.AspNetCore.sln --verify-no-changes
+
+      - name: Build
+        if: hashFiles('asp/PoliPage.AspNetCore.sln') != ''
+        run: dotnet build asp/PoliPage.AspNetCore.sln -c Release --no-restore -f ${{ matrix.tfm }}
+
+      - name: Test
+        if: hashFiles('asp/tests/**/*.csproj') != ''
+        run: |
+          dotnet test asp/PoliPage.AspNetCore.sln \
+            -c Release --no-build \
+            -f ${{ matrix.tfm }} \
+            --filter "Category!=Integration" \
+            --collect "XPlat Code Coverage"
+
+      - name: Pack
+        if: hashFiles('asp/src/**/*.csproj') != ''
+        run: dotnet pack asp/PoliPage.AspNetCore.sln -c Release --no-build

@@ -1,0 +1,41 @@
+<Project>
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Silence "missing XML doc" during the scaffolding tasks; the source project flips it back on in Task 2. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <!-- AOT + trimming. net8.0's AOT analyzer still flags BCL ASP.NET helpers the platform team has since fixed,
+         so we only flip <IsAotCompatible> for net10.0. Revisit when net8.0 reaches EOL (Nov 2026). -->
+    <IsAotCompatible Condition="'$(TargetFramework)' != 'net8.0'">true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Authors>Poli Page</Authors>
+    <Company>Poli Page</Company>
+    <Copyright>Copyright (c) 2026 Poli Page</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/poli-page/asp</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/poli-page/asp</PackageProjectUrl>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <DeterministicSourcePaths Condition="'$(ContinuousIntegrationBuild)' == 'true'">true</DeterministicSourcePaths>
+  </PropertyGroup>
+
+  <!-- Embed the README in every package so the NuGet listing renders it. -->
+  <ItemGroup Condition="'$(IsPackable)' != 'false'">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Condition="Exists('$(MSBuildThisFileDirectory)README.md')" />
+  </ItemGroup>
+</Project>
