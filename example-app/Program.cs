@@ -14,6 +14,9 @@ builder.Configuration.AddPoliPageWorkspaceEnvFile();
 // "PoliPage" section.
 builder.Services.AddPoliPageAspNetCore(builder.Configuration.GetSection("PoliPage"));
 
+// Adding MVC services so the InvoicesController demo (PoliPageResponseFactory) is reachable.
+builder.Services.AddControllers();
+
 var app = builder.Build();
 
 // Primary path: the IExceptionHandler registered by AddPoliPageAspNetCore handles
@@ -21,9 +24,15 @@ var app = builder.Build();
 // swap this for `app.UsePoliPageExceptionHandler()` (and disable RegisterExceptionHandler).
 app.UseExceptionHandler();
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.MapPoliPageSmokeTest().AllowAnonymous();
 app.MapRenderEndpoints();
+app.MapDocumentEndpoints();
+app.MapErrorEndpoints();
+app.MapControllers();
 
-app.MapGet("/", () => Results.Redirect("/poli-page/smoke"));
+app.MapGet("/", () => Results.Redirect("/demo.html"));
 
 await app.RunAsync();

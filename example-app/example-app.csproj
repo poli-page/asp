@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
+    <!-- Override the parent's TargetFrameworks (net8.0;net10.0). Example apps target the
+         latest LTS only — running the demo on net8.0 is not interesting. -->
+    <TargetFrameworks>net10.0</TargetFrameworks>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

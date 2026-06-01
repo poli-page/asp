@@ -8,56 +8,40 @@ internal static class RenderEndpoints
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        endpoints.MapGet("/render/welcome", RenderWelcomeAsync);
-        endpoints.MapGet("/render/welcome/inline", RenderWelcomeInlineAsync);
-        endpoints.MapGet("/render/welcome/stream", RenderWelcomeStreamAsync);
-        endpoints.MapGet("/render/welcome/preview", RenderWelcomePreviewAsync);
+        endpoints.MapGet("/render/pdf", RenderPdfAsync);
+        endpoints.MapGet("/render/stream", RenderStreamAsync);
+        endpoints.MapGet("/render/preview", RenderPreviewAsync);
 
         return endpoints;
     }
 
-    private static async Task RenderWelcomeAsync(HttpContext httpContext)
+    private static async Task RenderPdfAsync(HttpContext httpContext)
     {
         var client = httpContext.RequestServices.GetRequiredService<PoliPageClient>();
-        var pdf = await client.Render.PdfAsync(
-            WelcomeInput("PoliPage.AspNetCore"),
-            cancellationToken: httpContext.RequestAborted);
-        await PoliPageResults.Pdf(pdf, "welcome.pdf").ExecuteAsync(httpContext);
-    }
-
-    private static async Task RenderWelcomeInlineAsync(HttpContext httpContext)
-    {
-        var client = httpContext.RequestServices.GetRequiredService<PoliPageClient>();
-        var pdf = await client.Render.PdfAsync(
-            WelcomeInput("PoliPage.AspNetCore"),
-            cancellationToken: httpContext.RequestAborted);
+        var pdf = await client.Render.PdfAsync(WelcomeInput(), cancellationToken: httpContext.RequestAborted);
         await PoliPageResults.Pdf(pdf, "welcome.pdf", inline: true).ExecuteAsync(httpContext);
     }
 
-    private static async Task RenderWelcomeStreamAsync(HttpContext httpContext)
+    private static async Task RenderStreamAsync(HttpContext httpContext)
     {
         var client = httpContext.RequestServices.GetRequiredService<PoliPageClient>();
-        var stream = await client.Render.PdfStreamAsync(
-            WelcomeInput("PoliPage.AspNetCore"),
-            cancellationToken: httpContext.RequestAborted);
+        var stream = await client.Render.PdfStreamAsync(WelcomeInput(), cancellationToken: httpContext.RequestAborted);
         await PoliPageResults.PdfStream(stream, "welcome-stream.pdf", inline: true).ExecuteAsync(httpContext);
     }
 
-    private static async Task RenderWelcomePreviewAsync(HttpContext httpContext)
+    private static async Task RenderPreviewAsync(HttpContext httpContext)
     {
         var client = httpContext.RequestServices.GetRequiredService<PoliPageClient>();
-        var preview = await client.Render.PreviewAsync(
-            WelcomeInput("PoliPage.AspNetCore"),
-            cancellationToken: httpContext.RequestAborted);
+        var preview = await client.Render.PreviewAsync(WelcomeInput(), cancellationToken: httpContext.RequestAborted);
         var html = string.Concat(preview.Pages);
         await PoliPageResults.Preview(html).ExecuteAsync(httpContext);
     }
 
-    private static ProjectModeInput WelcomeInput(string name) => new()
+    private static ProjectModeInput WelcomeInput() => new()
     {
         Project = "getting-started",
         Template = "welcome",
         Version = "1.0.0",
-        Data = new { name },
+        Data = new { name = "PoliPage.AspNetCore" },
     };
 }
