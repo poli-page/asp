@@ -36,3 +36,9 @@ app.MapControllers();
 app.MapGet("/", () => Results.Redirect("/demo.html"));
 
 await app.RunAsync();
+
+// Marker class so tests can reference the example-app's host as
+// WebApplicationFactory<Program>. The C# compiler synthesizes an "internal partial class
+// Program" for the file's top-level statements; adding "public partial" here promotes
+// the visibility without altering the entry-point semantics. CLAUDE.md §10.4.
+public partial class Program { }

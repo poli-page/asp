@@ -22,37 +22,47 @@ internal static class PoliPageWorkspaceEnvFile
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        var envFile = LocateEnvFile(Directory.GetCurrentDirectory());
-        if (envFile is null)
-            return builder;
-
         var pairs = new Dictionary<string, string?>(StringComparer.Ordinal);
-        foreach (var raw in File.ReadAllLines(envFile))
+
+        var envFile = LocateEnvFile(Directory.GetCurrentDirectory());
+        if (envFile is not null)
         {
-            var line = raw.Trim();
-            if (line.Length == 0 || line.StartsWith('#'))
-                continue;
-
-            var eq = line.IndexOf('=', StringComparison.Ordinal);
-            if (eq <= 0)
-                continue;
-
-            var key = line[..eq].Trim();
-            var value = line[(eq + 1)..].Trim();
-
-            // Strip a matching pair of surrounding quotes.
-            if (value.Length >= 2 &&
-                ((value[0] == '"' && value[^1] == '"') || (value[0] == '\'' && value[^1] == '\'')))
+            foreach (var raw in File.ReadAllLines(envFile))
             {
-                value = value[1..^1];
+                var line = raw.Trim();
+                if (line.Length == 0 || line.StartsWith('#'))
+                    continue;
+
+                var eq = line.IndexOf('=', StringComparison.Ordinal);
+                if (eq <= 0)
+                    continue;
+
+                var key = line[..eq].Trim();
+                var value = line[(eq + 1)..].Trim();
+
+                // Strip a matching pair of surrounding quotes.
+                if (value.Length >= 2 &&
+                    ((value[0] == '"' && value[^1] == '"') || (value[0] == '\'' && value[^1] == '\'')))
+                {
+                    value = value[1..^1];
+                }
+
+                // Real shell exports always win — handled by the env-var pass below.
+                var configKey = KeyMapping.TryGetValue(key, out var mapped) ? mapped : key;
+                pairs[configKey] = value;
             }
+        }
 
-            // Real shell exports always win.
-            if (Environment.GetEnvironmentVariable(key) is not null)
-                continue;
-
-            var configKey = KeyMapping.TryGetValue(key, out var mapped) ? mapped : key;
-            pairs[configKey] = value;
+        // Env vars override .env. The default AddEnvironmentVariables() that CreateBuilder
+        // wires only knows the double-underscore hierarchical convention (POLI_PAGE__API_KEY),
+        // not the flat shell-style names the sister integrations standardised on
+        // (POLI_PAGE_API_KEY). This loop translates the known POLI_PAGE_* env vars into the
+        // hierarchical PoliPage:* config keys the SDK + integration options bind from.
+        foreach (var (envName, configKey) in KeyMapping)
+        {
+            var envValue = Environment.GetEnvironmentVariable(envName);
+            if (!string.IsNullOrEmpty(envValue))
+                pairs[configKey] = envValue;
         }
 
         return pairs.Count == 0 ? builder : builder.AddInMemoryCollection(pairs);
