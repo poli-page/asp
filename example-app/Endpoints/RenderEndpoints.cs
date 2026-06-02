@@ -33,8 +33,7 @@ internal static class RenderEndpoints
     {
         var client = httpContext.RequestServices.GetRequiredService<PoliPageClient>();
         var preview = await client.Render.PreviewAsync(WelcomeInput(), cancellationToken: httpContext.RequestAborted);
-        var html = string.Concat(preview.Pages);
-        await PoliPageResults.Preview(html).ExecuteAsync(httpContext);
+        await PoliPageResults.Preview(preview.Html).ExecuteAsync(httpContext);
     }
 
     private static ProjectModeInput WelcomeInput() => new()

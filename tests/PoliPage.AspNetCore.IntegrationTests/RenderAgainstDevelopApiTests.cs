@@ -49,11 +49,24 @@ public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<
         bytes.Length.Should().BeGreaterThan(1024);
     }
 
-    // /render/preview is deliberately not exercised here: the SDK's PoliPage.PreviewResult
-    // declares both `Pages` and `TotalPageCount` as required JSON properties, but the live
-    // API only ships `pages` — the deserializer throws JsonException("missing required
-    // properties including 'totalPageCount'") on every preview call. This is an SDK issue,
-    // not an integration issue. Re-enable this test once sdk-csharp relaxes the constraint.
+    [Fact]
+    public async Task Render_preview_endpoint_round_trips_against_develop()
+    {
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("POLI_PAGE_API_KEY")))
+            return;
+
+        using var client = _factory.CreateClient();
+        var response = await client.GetAsync("/render/preview");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        // MediaTypeHeaderValue splits "text/html; charset=utf-8" into MediaType + CharSet.
+        response.Content.Headers.ContentType?.MediaType.Should().Be("text/html");
+        response.Content.Headers.ContentType?.CharSet.Should().Be("utf-8");
+
+        var html = await response.Content.ReadAsStringAsync();
+        html.Should().NotBeNullOrWhiteSpace();
+        html.Length.Should().BeGreaterThan(1024);
+    }
 
     [Fact]
     public async Task Documents_create_round_trips_against_develop()

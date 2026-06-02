@@ -8,7 +8,7 @@ namespace PoliPage.AspNetCore.Tests.Fixtures;
 // SDK → response factory). Inspects the request URI to pick a response shape:
 //   POST /v1/render        → descriptor JSON with presignedPdfUrl pointing at the stub
 //   GET  /storage/…        → the configured PDF bytes
-//   GET  /v1/render/preview→ canned preview JSON (paginated HTML pages array)
+//   POST /v1/render/preview→ canned preview JSON ({ html, totalPages, environment })
 //
 // When NextException is set, every call throws it so the IExceptionHandler / middleware
 // can be exercised end-to-end without modelling real API failure modes.
@@ -66,7 +66,7 @@ internal sealed class StubPoliPageHttpHandler : DelegatingHandler
         if (path.EndsWith("/v1/render/preview", StringComparison.Ordinal))
         {
             var escaped = PreviewHtml.Replace("\"", "\\\"", StringComparison.Ordinal);
-            var preview = $$"""{"pages":["{{escaped}}"],"pageCount":1}""";
+            var preview = $$"""{"html":"{{escaped}}","totalPages":1,"environment":"sandbox"}""";
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(preview, Encoding.UTF8, "application/json"),

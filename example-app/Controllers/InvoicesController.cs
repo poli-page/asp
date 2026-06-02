@@ -48,6 +48,6 @@ public sealed class InvoicesController : ControllerBase
             },
             cancellationToken: cancellationToken);
 
-        return _factory.Preview(string.Concat(preview.Pages));
+        return _factory.Preview(preview.Html);
     }
 }
