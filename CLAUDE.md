@@ -55,8 +55,9 @@ RED → GREEN → refactor for every change. Tests live in `tests/PoliPage.AspNe
 - **`PoliPageResults` / `PoliPageResponseFactory`**: every method sets the right headers (`Content-Type`, RFC 5987 `Content-Disposition`, `Cache-Control: no-store, private` when default, `X-Content-Type-Options: nosniff` when default). ASCII and non-ASCII filenames both encode correctly.
 - **`PoliPageExceptionHandlerMiddleware`**: status mapping for every exception family (see §10 of the spec for the table). `PoliPageException` thrown after `Response.HasStarted` is rethrown + warning logged. Non-`PoliPageException` bubbles unchanged.
 - **`MapPoliPageSmokeTest`**: returns 200 + `application/pdf` when the (faked) SDK succeeds; throws → middleware → ProblemDetails when the SDK throws.
-- **`HealthChecksBuilderExtensions.AddPoliPage`**: `Healthy` on success, `Unhealthy` on `PoliPageException`, `Degraded` on `PoliPageRateLimitException`.
 - **`ContentDispositionHeader.Build`**: ASCII / non-ASCII / embedded quote / empty string cases.
+
+*(`HealthChecksBuilderExtensions.AddPoliPage` is deferred to v0.2 — see §2 and `docs/sdk-surface-audit-2026-06-01.md` §0.3. No tests needed in v0.1.)*
 
 ### What NOT to test (the SDK already does)
 
