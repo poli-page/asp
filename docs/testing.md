@@ -2,6 +2,8 @@
 
 > Replace `PoliPageClient` in `WebApplicationFactory<TEntryPoint>` so your endpoint tests never hit the real Poli Page API.
 
+> **Doc status — 2026-06-01**: parts of this guide predate the SDK surface audit and recommend a `FakePoliPageClient : PoliPageClient` subclass that does not compile against the shipped SDK (`PoliPageClient` is sealed with an internal-only constructor — see [`sdk-surface-audit-2026-06-01.md`](sdk-surface-audit-2026-06-01.md) §0.2). The working pattern this repo uses internally is a `DelegatingHandler`-based `StubPoliPageHttpHandler` injected via `services.RemoveAll<PoliPageClient>()` followed by a custom singleton that constructs `PoliPageClient` directly with stub-backed `HttpClient` and `DownloadHttpClient` options. See [`tests/PoliPage.AspNetCore.Tests/Fixtures/PoliPageTestHost.cs`](../tests/PoliPage.AspNetCore.Tests/Fixtures/PoliPageTestHost.cs) and `StubPoliPageHttpHandler.cs` for the canonical implementation. A full rewrite of this guide lands in a follow-up.
+
 ## Why
 
 `AddPoliPageAspNetCore` registers `PoliPageClient` as a singleton wired to `IHttpClientFactory`. Letting that client reach the network during unit tests is slow, flaky, and burns API quota. `WebApplicationFactory<TEntryPoint>` lets you replace the registration with a fake — your endpoint and middleware code under test stays identical to production; only the dependency changes. The SDK's own test suite already covers HTTP transport, retries, error mapping, and idempotency (see [CLAUDE.md §4](../CLAUDE.md) *What NOT to test*), so your tests focus on endpoint behaviour, not on the SDK.

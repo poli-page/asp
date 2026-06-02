@@ -9,14 +9,13 @@
 
 ## About
 
-This package wraps the Poli Page .NET SDK as an ASP.NET Core-native integration: a one-line DI registration that composes the SDK's `AddPoliPage(...)` with response helpers, terminal exception middleware that maps SDK exceptions to RFC 7807 `ProblemDetails`, a `MapPoliPageSmokeTest` endpoint for post-deploy verification, and a health-check probe for `Microsoft.Extensions.Diagnostics.HealthChecks`. You configure it through `IConfiguration` (`appsettings.json` + environment variables) and return rendered PDFs the same way you return JSON or a view.
+This package wraps the Poli Page .NET SDK as an ASP.NET Core-native integration: a one-line DI registration that composes the SDK's `AddPoliPage(...)` with response helpers, an `IExceptionHandler` that maps SDK exceptions to RFC 7807 `ProblemDetails`, and a `MapPoliPageSmokeTest` endpoint for post-deploy verification. You configure it through `IConfiguration` (`appsettings.json` + environment variables) and return rendered PDFs the same way you return JSON or a view.
 
 **When to use this:**
 
 - You want to return a generated PDF from a Minimal API or MVC controller with correct `Content-Type`, `Content-Disposition`, and cache headers.
 - You want the Poli Page client autowired from DI and configured through `appsettings.json`.
 - You want SDK exceptions to surface as ProblemDetails JSON consistent with the rest of your error contract.
-- You want a one-line `IHealthChecksBuilder.AddPoliPage()` probe.
 
 **When not to:**
 
@@ -259,24 +258,33 @@ The `Instance` field in our ProblemDetails responses uses `Request.Path` + `Quer
 | `PoliPage.PoliPageClient` | SDK client singleton. Inject by type. Exposes `Render` and `Documents`. |
 | `PoliPage.AspNetCore.PoliPageResults` | Static factory for Minimal API `IResult` values: `Pdf`, `PdfStream`, `Preview`, `DocumentRedirect`. |
 | `PoliPage.AspNetCore.PoliPageResponseFactory` | DI-resolvable factory for MVC `IActionResult` values. Same four methods. |
-| `PoliPage.AspNetCore.PoliPageExceptionHandlerMiddleware` | Terminal middleware mapping `PoliPageException` to ProblemDetails JSON. Registered via `app.UsePoliPageExceptionHandler()`. |
+| `PoliPage.AspNetCore.ApplicationBuilderExtensions.UsePoliPageExceptionHandler` | Fallback middleware mapping `PoliPageException` to ProblemDetails JSON. Use only when **not** calling `app.UseExceptionHandler()`. |
 | `PoliPage.AspNetCore.EndpointRouteBuilderExtensions.MapPoliPageSmokeTest` | Registers a `GET /poli-page/smoke` endpoint that renders `getting-started/welcome`. |
-| `PoliPage.AspNetCore.HealthChecksBuilderExtensions.AddPoliPage` | `IHealthChecksBuilder` extension for `Microsoft.Extensions.Diagnostics.HealthChecks`. |
 
 Full reference: <https://poli-page.github.io/asp/>.
 
 ## Errors
 
-The SDK throws six families of exceptions. They all extend `PoliPage.PoliPageException`. With the default wiring (`AddPoliPageAspNetCore(...)` + `app.UseExceptionHandler()`), they map to `ProblemDetails` JSON via `IProblemDetailsService` — meaning any `services.AddProblemDetails(opts => opts.CustomizeProblemDetails = ...)` callback you register also runs on our responses, so the JSON shape stays consistent across **all** error sources in your app (validation 422, framework 404, `PoliPageException`, …):
+The SDK throws eight typed exceptions, all derived from `PoliPage.PoliPageException`. With the default wiring (`AddPoliPageAspNetCore(...)` + `app.UseExceptionHandler()`), they map to `ProblemDetails` JSON via `IProblemDetailsService` — meaning any `services.AddProblemDetails(opts => opts.CustomizeProblemDetails = ...)` callback you register also runs on our responses, so the JSON shape stays consistent across **all** error sources in your app (validation 422, framework 404, `PoliPageException`, …):
 
 | Exception | Status | `code` |
 |---|---|---|
-| `PoliPageAuthenticationException` | 401 | `authentication_failed` |
-| `PoliPageBadRequestException` | 400 | `bad_request` |
+| `PoliPageAuthException` | 401 | `authentication_failed` |
+| `PoliPagePaymentRequiredException` | 402 | `payment_required` |
 | `PoliPageNotFoundException` | 404 | `not_found` |
+| `PoliPageGoneException` | 410 | `gone` |
+| `PoliPageValidationException` | 400 or 422 | `validation_failed` |
 | `PoliPageRateLimitException` | 429 | `rate_limited` |
-| `PoliPageConnectionException` | 502 | `upstream_unavailable` |
-| `PoliPageException` (catch-all) | from `StatusCode` or 502 | `poli_page_error` |
+| `PoliPageNetworkException` | 502 | `upstream_unavailable` |
+| `PoliPageDownloadException` | 502 | `download_failed` |
+| `PoliPageException` (fallback) | 500 | `poli_page_error` |
+
+ProblemDetails extensions surface useful context on top of the standard fields:
+
+- `code` — the public problem code (matches the table above)
+- `poliPageRequestId` — the SDK's `Code`-bearing `RequestId`, when the API provided one
+- `retryAfterSeconds` — for `PoliPageRateLimitException` only, when the API supplied a `Retry-After` header
+- `traceId` — the current `Activity.Id` (or `HttpContext.TraceIdentifier` when no Activity is running)
 
 ```csharp
 try
@@ -284,7 +292,7 @@ try
     var pdf = await poliPage.Render.PdfAsync(input, cancellationToken: ct);
     return PoliPageResults.Pdf(pdf, "invoice.pdf");
 }
-catch (PoliPageBadRequestException ex)
+catch (PoliPageValidationException ex)
 {
     // Validation message useful to surface back to the user.
     return Results.ValidationProblem(new Dictionary<string, string[]>
@@ -292,36 +300,57 @@ catch (PoliPageBadRequestException ex)
         ["template"] = new[] { ex.Message },
     });
 }
-catch (PoliPageRateLimitException)
+catch (PoliPageRateLimitException ex)
 {
+    var retryAfter = ex.RetryAfter ?? TimeSpan.FromSeconds(5);
     return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
 }
 ```
 
-You can also let the middleware handle everything — the explicit `try`/`catch` is only needed when you want a custom response for one error family.
+You can also let the handler do all the mapping — the explicit `try`/`catch` is only needed when you want a custom response for one error family.
 
 ## Health checks
 
-```csharp
-builder.Services.AddHealthChecks()
-    .AddPoliPage(name: "poli-page", tags: new[] { "ready" });
+A first-class `IHealthChecksBuilder.AddPoliPage()` registration is **deferred to v0.2** — the SDK does not yet expose a cheap probe endpoint, and shipping a probe that renders the full welcome template per poll would burn API quota. Hosts that need a Poli Page health check today can probe the smoke endpoint through `IHttpClientFactory`:
 
-app.MapHealthChecks("/healthz/ready", new HealthCheckOptions
+```csharp
+builder.Services.AddHttpClient("PoliPage.Health", c =>
 {
-    Predicate = r => r.Tags.Contains("ready"),
+    c.BaseAddress = new Uri(builder.Configuration["AppBaseUrl"]
+        ?? "http://localhost:5000");
+    c.Timeout = TimeSpan.FromSeconds(5);
 });
+
+builder.Services.AddHealthChecks().AddTypeActivatedCheck<PoliPageSmokeHealthCheck>(
+    name: "poli-page",
+    tags: new[] { "ready" });
+
+internal sealed class PoliPageSmokeHealthCheck(IHttpClientFactory factory) : IHealthCheck
+{
+    public async Task<HealthCheckResult> CheckHealthAsync(
+        HealthCheckContext context, CancellationToken cancellationToken = default)
+    {
+        using var http = factory.CreateClient("PoliPage.Health");
+        var response = await http.GetAsync("/poli-page/smoke", cancellationToken);
+        return response.IsSuccessStatusCode
+            ? HealthCheckResult.Healthy()
+            : HealthCheckResult.Unhealthy($"smoke endpoint returned {(int)response.StatusCode}");
+    }
+}
 ```
 
-The probe issues a cheap GET against the SDK; `Healthy` on 2xx, `Unhealthy` on `PoliPageException`, `Degraded` on `PoliPageRateLimitException` (rate-limited but reachable).
+This routes through the same exception-handler path your application uses, so a `PoliPageRateLimitException` already returns 429 and a `PoliPageNetworkException` already returns 502 — the health check just reads the status. v0.2 will replace this with a one-line `.AddPoliPage()` once the SDK ships a dedicated `PingAsync`.
 
 ## Example app
 
-A runnable Minimal API + MVC app at [`example-app/`](example-app/) demonstrates every public SDK method through endpoints, an interactive single-page dashboard at `GET /`, and a `dotnet run -- render-to-file` CLI branch.
+A runnable Minimal API + MVC app at [`example-app/`](example-app/) demonstrates every public SDK method. `GET /` redirects to an interactive single-page dashboard at `/demo.html` that exercises render (`/render/pdf`, `/render/stream`, `/render/preview`), document lifecycle (`POST /documents`, `GET/DELETE /documents/{id}`, `/preview`, `/thumbnails`), and the typed-exception path (`/errors/bad-version`).
 
 ```bash
 cd example-app
-dotnet run
+POLI_PAGE_API_KEY=pp_test_… POLI_PAGE_BASE_URL=https://api-develop.poli.page dotnet run
 ```
+
+Or drop `POLI_PAGE_*` lines into the workspace root `.env` (`../.env`) — the example app loads them at startup; real shell exports always win.
 
 ## Going further
 
