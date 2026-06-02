@@ -137,22 +137,17 @@ public class InvoicesController(
 
 The two surfaces are equivalent: both set `Content-Type: application/pdf`, RFC 5987-encoded `Content-Disposition`, `Cache-Control: no-store, private`, and `X-Content-Type-Options: nosniff`.
 
-## Smoke testing
+### Smoke test the wiring
 
-`MapPoliPageSmokeTest` registers an endpoint that renders the well-known `getting-started/welcome` template and returns the PDF inline. Use it once after deployment to verify wiring.
+`app.MapPoliPageSmokeTest()` registers `GET /poli-page/smoke` against the well-known `getting-started/welcome` template — use it once after deployment to confirm credentials and network reachability:
 
 ```csharp
-app.MapPoliPageSmokeTest("/poli-page/smoke")
-   .RequireAuthorization("Operator");
+app.MapPoliPageSmokeTest().RequireAuthorization("Operator");
+
+// curl -sS https://your-app.example.com/poli-page/smoke -o welcome.pdf
 ```
 
-```bash
-curl -sS https://your-app.example.com/poli-page/smoke -o welcome.pdf
-```
-
-Every Poli Page org comes pre-provisioned with `getting-started/welcome`, so the endpoint works as soon as the API key is valid.
-
-> **Production warning**: every `GET /poli-page/smoke` call burns one render against your API quota. If you register the endpoint without `.RequireAuthorization(...)` **and** without `.AllowAnonymous()`, the package emits a one-time startup warning at the `Warning` log level. In production, gate the endpoint behind auth or wrap it in an `app.Environment.IsDevelopment()` check.
+Every Poli Page org comes pre-provisioned with `getting-started/welcome`, so the endpoint works as soon as the API key is valid. The package emits a one-time `Warning`-level log entry at startup if the endpoint is registered without `.RequireAuthorization(...)` **or** `.AllowAnonymous()` — every call burns one render against your quota, so production hosts should gate it.
 
 ## Configuration
 
@@ -308,38 +303,6 @@ catch (PoliPageRateLimitException ex)
 ```
 
 You can also let the handler do all the mapping — the explicit `try`/`catch` is only needed when you want a custom response for one error family.
-
-## Health checks
-
-A first-class `IHealthChecksBuilder.AddPoliPage()` registration is **deferred to v0.2** — the SDK does not yet expose a cheap probe endpoint, and shipping a probe that renders the full welcome template per poll would burn API quota. Hosts that need a Poli Page health check today can probe the smoke endpoint through `IHttpClientFactory`:
-
-```csharp
-builder.Services.AddHttpClient("PoliPage.Health", c =>
-{
-    c.BaseAddress = new Uri(builder.Configuration["AppBaseUrl"]
-        ?? "http://localhost:5000");
-    c.Timeout = TimeSpan.FromSeconds(5);
-});
-
-builder.Services.AddHealthChecks().AddTypeActivatedCheck<PoliPageSmokeHealthCheck>(
-    name: "poli-page",
-    tags: new[] { "ready" });
-
-internal sealed class PoliPageSmokeHealthCheck(IHttpClientFactory factory) : IHealthCheck
-{
-    public async Task<HealthCheckResult> CheckHealthAsync(
-        HealthCheckContext context, CancellationToken cancellationToken = default)
-    {
-        using var http = factory.CreateClient("PoliPage.Health");
-        var response = await http.GetAsync("/poli-page/smoke", cancellationToken);
-        return response.IsSuccessStatusCode
-            ? HealthCheckResult.Healthy()
-            : HealthCheckResult.Unhealthy($"smoke endpoint returned {(int)response.StatusCode}");
-    }
-}
-```
-
-This routes through the same exception-handler path your application uses, so a `PoliPageRateLimitException` already returns 429 and a `PoliPageNetworkException` already returns 502 — the health check just reads the status. v0.2 will replace this with a one-line `.AddPoliPage()` once the SDK ships a dedicated `PingAsync`.
 
 ## Example app
 
