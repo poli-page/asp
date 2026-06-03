@@ -23,7 +23,7 @@ public class PoliPageProblemDetailsFactoryTests
                                           requestId: "req_1", retryAfter: TimeSpan.FromSeconds(7)),
           StatusCodes.Status429TooManyRequests, "rate_limited", "Rate limit exceeded" },
         { new PoliPageNetworkException(PoliPageErrorCode.Network, "DNS fail", new HttpRequestException("dns")),
-          StatusCodes.Status502BadGateway, "upstream_unavailable", "Upstream unavailable" },
+          StatusCodes.Status503ServiceUnavailable, "upstream_unavailable", "Upstream unavailable" },
         { new PoliPageDownloadException(PoliPageErrorCode.DownloadFailed, 0, "s3 503", requestId: "req_1"),
           StatusCodes.Status502BadGateway, "download_failed", "Stored document download failed" },
     };
@@ -45,7 +45,19 @@ public class PoliPageProblemDetailsFactoryTests
         problem.Type.Should().Be($"https://poli.page/errors#{expectedCode}");
         problem.Detail.Should().Be(exception.Message);
         problem.Instance.Should().Be("/test?x=1");
-        problem.Extensions["code"].Should().Be(expectedCode);
+        // `code` extension is the API's verbatim code, not the framework problem-code.
+        problem.Extensions["code"].Should().Be(exception.Code);
+    }
+
+    [Fact]
+    public void Build_uses_504_for_base_exception_with_timeout_code()
+    {
+        var factory = CreateFactory();
+        var exception = new PoliPageException(PoliPageErrorCode.Timeout, statusCode: 0, "deadline");
+
+        var problem = factory.Build(new DefaultHttpContext(), exception);
+
+        problem.Status.Should().Be(StatusCodes.Status504GatewayTimeout);
     }
 
     [Fact]

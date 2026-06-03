@@ -20,20 +20,23 @@ internal sealed class PoliPageProblemDetailsFactory
         ArgumentNullException.ThrowIfNull(httpContext);
         ArgumentNullException.ThrowIfNull(exception);
 
-        var (status, code, title) = Map(exception);
+        var (mappedStatus, problemCode, title) = Map(exception);
+        var payload = exception.ToPayload();
 
         var problem = new ProblemDetails
         {
-            Type = $"{_options.ProblemDetailsTypeUri}#{code}",
+            Type = $"{_options.ProblemDetailsTypeUri}#{problemCode}",
             Title = title,
-            Status = status,
-            Detail = exception.Message,
+            Status = payload.Status ?? mappedStatus,
+            Detail = payload.Message,
             Instance = httpContext.Request.Path + httpContext.Request.QueryString,
         };
 
-        problem.Extensions["code"] = code;
+        // `code` extension is the API's verbatim error code (from the SDK payload),
+        // not the framework-level problem-code used in the `type` URI fragment.
+        problem.Extensions["code"] = payload.Code;
 
-        if (_options.IncludeRequestIdInProblemDetails && exception.RequestId is { } requestId)
+        if (_options.IncludeRequestIdInProblemDetails && payload.RequestId is { } requestId)
             problem.Extensions["poliPageRequestId"] = requestId;
 
         if (exception is PoliPageRateLimitException { RetryAfter: { } retryAfter })
@@ -63,7 +66,7 @@ internal sealed class PoliPageProblemDetailsFactory
                                                 : StatusCodes.Status422UnprocessableEntity,
                                                "validation_failed", "Validation failed"),
             PoliPageRateLimitException => (StatusCodes.Status429TooManyRequests, "rate_limited", "Rate limit exceeded"),
-            PoliPageNetworkException => (StatusCodes.Status502BadGateway, "upstream_unavailable", "Upstream unavailable"),
+            PoliPageNetworkException => (StatusCodes.Status503ServiceUnavailable, "upstream_unavailable", "Upstream unavailable"),
             PoliPageDownloadException => (StatusCodes.Status502BadGateway, "download_failed", "Stored document download failed"),
             _ => (StatusCodes.Status500InternalServerError, "poli_page_error", "Poli Page error"),
         };
