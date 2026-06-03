@@ -11,6 +11,7 @@ internal static class RenderEndpoints
         endpoints.MapGet("/render/pdf", RenderPdfAsync);
         endpoints.MapGet("/render/stream", RenderStreamAsync);
         endpoints.MapGet("/render/preview", RenderPreviewAsync);
+        endpoints.MapPost("/render/file", RenderFileAsync);
 
         return endpoints;
     }
@@ -35,6 +36,26 @@ internal static class RenderEndpoints
         var preview = await client.Render.PreviewAsync(WelcomeInput(), cancellationToken: httpContext.RequestAborted);
         await PoliPageResults.Preview(preview.Html).ExecuteAsync(httpContext);
     }
+
+    private static async Task<IResult> RenderFileAsync(HttpContext httpContext)
+    {
+        var client = httpContext.RequestServices.GetRequiredService<PoliPageClient>();
+        var environment = httpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
+
+        var path = Path.Combine(environment.ContentRootPath, "output", "welcome.pdf");
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        await client.RenderToFileAsync(WelcomeInput(), path, cancellationToken: httpContext.RequestAborted);
+
+        var sizeBytes = new FileInfo(path).Length;
+        return TypedResults.Ok(new RenderFileResponse(path, sizeBytes));
+    }
+
+    private sealed record RenderFileResponse(string Path, long SizeBytes);
 
     private static ProjectModeInput WelcomeInput() => new()
     {

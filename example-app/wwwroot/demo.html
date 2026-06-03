@@ -110,6 +110,7 @@
   section:nth-of-type(2) { animation-delay: 0.12s; }
   section:nth-of-type(3) { animation-delay: 0.19s; }
   section:nth-of-type(4) { animation-delay: 0.26s; }
+  section:nth-of-type(5) { animation-delay: 0.33s; }
   @keyframes rise {
     from { opacity: 0; transform: translateY(10px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -444,7 +445,24 @@
 
   <section>
     <div class="head">
-      <h2>Error handling <span class="label">03 · typed exceptions</span></h2>
+      <h2>Filesystem <span class="label">03 · render to disk</span></h2>
+      <p class="desc">
+        <code>PoliPageClient.RenderToFileAsync</code> streams the PDF straight to disk under
+        <code>example-app/output/welcome.pdf</code> — memory-bounded regardless of size.
+      </p>
+    </div>
+    <div class="actions">
+      <button class="run" data-action="render-file" data-target="r3">Render to file</button>
+    </div>
+    <div class="result" id="r3">
+      <div class="pane-label"><span>output</span><span class="meta">idle</span></div>
+      <div class="empty">Press the button to stream a PDF to disk.</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>Error handling <span class="label">04 · typed exceptions</span></h2>
       <p class="desc">
         Sends a deliberately malformed version string to trigger
         <code>INVALID_VERSION_FORMAT</code>. The integration's <code>IExceptionHandler</code>
@@ -453,9 +471,9 @@
       </p>
     </div>
     <div class="actions">
-      <button class="run" data-action="bad-version" data-target="r3">Trigger 400</button>
+      <button class="run" data-action="bad-version" data-target="r4">Trigger 400</button>
     </div>
-    <div class="result" id="r3">
+    <div class="result" id="r4">
       <div class="pane-label"><span>output</span><span class="meta">idle</span></div>
       <div class="empty">Press the button to see the error payload.</div>
     </div>
@@ -463,25 +481,24 @@
 
   <section>
     <div class="head">
-      <h2>Command line <span class="label">04 · console</span></h2>
+      <h2>Command line <span class="label">05 · CLI</span></h2>
       <p class="desc">
-        These two commands prove the bundle wires through to Symfony Console.
-        Copy and run in a terminal alongside this server.
+        Boot the example app, then hit <code>MapPoliPageSmokeTest</code> from
+        a terminal — the .NET-idiomatic post-deploy probe, no browser needed.
       </p>
     </div>
     <div class="cli">
-      <button class="copy" data-copy="php bin/console app:demo:render-to-file">Copy</button>
-      <span class="prompt">$</span>php bin/console app:demo:render-to-file
+      <button class="copy" data-copy="dotnet run --project example-app">Copy</button>
+      <span class="prompt">$</span>dotnet run --project example-app
     </div>
     <div class="cli">
-      <button class="copy" data-copy="php bin/console poli-page:render --project=getting-started --template=welcome --template-version=1.0.0 --output=/tmp/smoke.pdf">Copy</button>
-      <span class="prompt">$</span>php bin/console poli-page:render --project=getting-started \
-        --template=welcome --template-version=1.0.0 --output=/tmp/smoke.pdf
+      <button class="copy" data-copy="curl -o /tmp/welcome.pdf http://localhost:5044/poli-page/smoke">Copy</button>
+      <span class="prompt">$</span>curl -o /tmp/welcome.pdf http://localhost:5044/poli-page/smoke
     </div>
   </section>
 
   <footer>
-    <span>poli-page/symfony-bundle · v0.1.0</span>
+    <span>poli-page/asp · v0.1.0</span>
     <span class="links"><a href="https://docs.poli.page" target="_blank" rel="noopener">docs.poli.page</a></span>
   </footer>
 
@@ -598,6 +615,11 @@
       const body = await r.text();
       renderJson(target, r.status, body || '"(204 No Content)"', 'delete');
       if (r.ok) setDocId(null);
+    },
+    'render-file': async target => {
+      const r = await fetch('/render/file', { method: 'POST' });
+      const body = await r.text();
+      renderJson(target, r.status, body, 'wrote to disk');
     },
     'bad-version': async target => {
       const r = await fetch('/errors/bad-version');
