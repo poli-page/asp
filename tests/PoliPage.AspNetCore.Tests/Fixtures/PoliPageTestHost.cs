@@ -81,6 +81,31 @@ internal sealed class PoliPageTestHost : IAsyncDisposable
 
         var app = builder.Build();
 
+#if NET8_0
+        // Why: Microsoft.AspNetCore.TestHost on net8.0 ships ResponseBodyPipeWriter without
+        // an UnflushedBytes override, and the framework's WriteAsJsonAsync (used by
+        // IProblemDetailsService.TryWriteAsync) requires it. Wrap Response.Body in a
+        // MemoryStream so the framework synthesises a StreamPipeWriter — which does
+        // implement UnflushedBytes — over the buffer. Fixed in net9+ TestHost; see
+        // dotnet/runtime#108075.
+        app.Use(static async (ctx, next) =>
+        {
+            var original = ctx.Response.Body;
+            using var buffer = new MemoryStream();
+            ctx.Response.Body = buffer;
+            try
+            {
+                await next().ConfigureAwait(false);
+                buffer.Position = 0;
+                await buffer.CopyToAsync(original).ConfigureAwait(false);
+            }
+            finally
+            {
+                ctx.Response.Body = original;
+            }
+        });
+#endif
+
         if (wireDefaultExceptionHandler)
         {
             if (useFallbackMiddleware)
