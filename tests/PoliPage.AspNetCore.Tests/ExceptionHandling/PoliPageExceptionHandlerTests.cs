@@ -13,7 +13,7 @@ public class PoliPageExceptionHandlerTests
     {
         var (handler, recorder) = CreateHandler();
         var httpContext = new DefaultHttpContext();
-        var exception = new PoliPageAuthException(PoliPageErrorCode.Unauthorized, 401, "bad key", requestId: "req_1");
+        var exception = new PoliPageAuthException(PoliPageErrorCode.InvalidApiKey, 401, "bad key", requestId: "req_1");
 
         var handled = await handler.TryHandleAsync(httpContext, exception, CancellationToken.None);
 
@@ -49,7 +49,7 @@ public class PoliPageExceptionHandlerTests
 
         var handled = await handler.TryHandleAsync(
             httpContext,
-            new PoliPageAuthException(PoliPageErrorCode.Unauthorized, 401, "x"),
+            new PoliPageAuthException(PoliPageErrorCode.InvalidApiKey, 401, "x"),
             CancellationToken.None);
 
         handled.Should().BeFalse();

@@ -42,7 +42,7 @@ public class PoliPageExceptionHandlerMiddlewareTests
     {
         var recorder = new RecordingProblemDetailsService();
         var middleware = CreateMiddleware(recorder,
-            _ => throw new PoliPageAuthException(PoliPageErrorCode.Unauthorized, 401, "x"));
+            _ => throw new PoliPageAuthException(PoliPageErrorCode.InvalidApiKey, 401, "x"));
 
         var httpContext = NewContext();
         httpContext.Features.Set<IHttpResponseFeature>(new ResponseFeatureWithHasStarted(hasStarted: true));
@@ -59,7 +59,7 @@ public class PoliPageExceptionHandlerMiddlewareTests
         var recorder = new RecordingProblemDetailsService { ReturnValue = false };
         var httpContext = NewContext();
         var middleware = CreateMiddleware(recorder,
-            _ => throw new PoliPageAuthException(PoliPageErrorCode.Unauthorized, 401, "denied", requestId: "req_x"));
+            _ => throw new PoliPageAuthException(PoliPageErrorCode.InvalidApiKey, 401, "denied", requestId: "req_x"));
 
         await middleware.InvokeAsync(httpContext);
 

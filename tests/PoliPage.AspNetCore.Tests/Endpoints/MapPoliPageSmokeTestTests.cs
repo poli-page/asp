@@ -29,7 +29,7 @@ public class MapPoliPageSmokeTestTests
         await using var host = await PoliPageTestHost.StartAsync(app =>
             app.MapPoliPageSmokeTest().AllowAnonymous());
         host.Stub.SetException(
-            new PoliPageAuthException(PoliPageErrorCode.Unauthorized, 401, "Bad key", requestId: "req_x"));
+            new PoliPageAuthException(PoliPageErrorCode.InvalidApiKey, 401, "Bad key", requestId: "req_x"));
 
         var response = await host.Client.GetAsync("/poli-page/smoke");
 
@@ -53,7 +53,7 @@ public class MapPoliPageSmokeTestTests
             },
             useFallbackMiddleware: true);
         host.Stub.SetException(
-            new PoliPageValidationException(PoliPageErrorCode.Validation, 422, "Bad input", requestId: "req_y"));
+            new PoliPageValidationException(PoliPageErrorCode.ValidationError, 422, "Bad input", requestId: "req_y"));
 
         var response = await host.Client.GetAsync("/poli-page/smoke");
 
