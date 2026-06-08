@@ -37,11 +37,11 @@ internal static class RenderEndpoints
         await PoliPageResults.Preview(preview.Html).ExecuteAsync(httpContext);
     }
 
-    private static async Task<IResult> RenderFileAsync(HttpContext httpContext)
+    private static async Task<IResult> RenderFileAsync(
+        PoliPageClient client,
+        IWebHostEnvironment environment,
+        CancellationToken cancellationToken)
     {
-        var client = httpContext.RequestServices.GetRequiredService<PoliPageClient>();
-        var environment = httpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
-
         var path = Path.Combine(environment.ContentRootPath, "output", "welcome.pdf");
         var directory = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(directory))
@@ -49,7 +49,7 @@ internal static class RenderEndpoints
             Directory.CreateDirectory(directory);
         }
 
-        await client.RenderToFileAsync(WelcomeInput(), path, cancellationToken: httpContext.RequestAborted);
+        await client.RenderToFileAsync(WelcomeInput(), path, cancellationToken: cancellationToken);
 
         var sizeBytes = new FileInfo(path).Length;
         return TypedResults.Ok(new RenderFileResponse(path, sizeBytes));
