@@ -127,7 +127,7 @@ public class PoliPageProblemDetailsFactoryTests
         var problem = factory.Build(new DefaultHttpContext(), exception);
 
         problem.Status.Should().Be(StatusCodes.Status500InternalServerError);
-        problem.Extensions["code"].Should().Be("poli_page_error");
+        problem.Extensions["code"].Should().Be(PoliPageErrorCode.Unknown);
     }
 
     [Fact]

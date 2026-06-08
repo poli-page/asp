@@ -37,7 +37,7 @@ public class MapPoliPageSmokeTestTests
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
 
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        doc.RootElement.GetProperty("code").GetString().Should().Be("authentication_failed");
+        doc.RootElement.GetProperty("code").GetString().Should().Be(PoliPageErrorCode.InvalidApiKey);
         doc.RootElement.GetProperty("poliPageRequestId").GetString().Should().Be("req_x");
     }
 
@@ -61,7 +61,7 @@ public class MapPoliPageSmokeTestTests
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
 
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        doc.RootElement.GetProperty("code").GetString().Should().Be("validation_failed");
+        doc.RootElement.GetProperty("code").GetString().Should().Be(PoliPageErrorCode.ValidationError);
     }
 
     [Fact]

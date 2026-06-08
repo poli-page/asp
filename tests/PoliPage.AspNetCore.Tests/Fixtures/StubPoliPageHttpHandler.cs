@@ -47,7 +47,9 @@ internal sealed class StubPoliPageHttpHandler : DelegatingHandler
                   "format": "pdf",
                   "pageCount": 1,
                   "sizeBytes": {{PdfBytes.Length}},
-                  "presignedPdfUrl": "https://stub.invalid/storage/doc_stub.pdf"
+                  "createdAt": "2026-06-08T00:00:00Z",
+                  "presignedPdfUrl": "https://stub.invalid/storage/doc_stub.pdf",
+                  "expiresAt": "2026-06-08T00:15:00Z"
                 }
                 """;
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)

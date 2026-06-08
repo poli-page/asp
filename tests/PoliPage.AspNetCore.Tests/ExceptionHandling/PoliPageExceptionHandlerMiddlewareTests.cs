@@ -20,7 +20,7 @@ public class PoliPageExceptionHandlerMiddlewareTests
 
         httpContext.Response.StatusCode.Should().Be(StatusCodes.Status404NotFound);
         recorder.Captured.Should().NotBeNull();
-        recorder.Captured!.Extensions["code"].Should().Be("not_found");
+        recorder.Captured!.Extensions["code"].Should().Be(PoliPageErrorCode.NotFound);
         recorder.Captured.Extensions["poliPageRequestId"].Should().Be("req_x");
     }
 

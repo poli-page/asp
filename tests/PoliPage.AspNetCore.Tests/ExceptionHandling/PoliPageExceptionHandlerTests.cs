@@ -21,7 +21,7 @@ public class PoliPageExceptionHandlerTests
         httpContext.Response.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
         recorder.Captured.Should().NotBeNull();
         recorder.Captured!.Status.Should().Be(StatusCodes.Status401Unauthorized);
-        recorder.Captured.Extensions["code"].Should().Be("authentication_failed");
+        recorder.Captured.Extensions["code"].Should().Be(PoliPageErrorCode.InvalidApiKey);
     }
 
     [Fact]
