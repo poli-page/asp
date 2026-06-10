@@ -270,7 +270,7 @@ public async Task Smoke_endpoint_round_trips()
 }
 ```
 
-`tests/PoliPage.AspNetCore.IntegrationTests/` in this repo demonstrates this exact pattern against `api-develop.poli.page`.
+`tests/PoliPage.AspNetCore.IntegrationTests/` in this repo demonstrates this exact pattern.
 
 ## Gotchas
 

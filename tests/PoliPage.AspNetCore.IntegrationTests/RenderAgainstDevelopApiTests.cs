@@ -2,11 +2,11 @@ using System.Text.Json;
 
 namespace PoliPage.AspNetCore.IntegrationTests;
 
-// Round-trips the example-app against the live api-develop.poli.page API. Tagged
-// Category=Integration so CI / dotnet test runs that filter on "Category!=Integration"
-// skip them by default — these tests cost real API quota. Each test also self-skips
-// when POLI_PAGE_API_KEY is absent, so an accidental run on an unconfigured environment
-// passes silently rather than failing red.
+// Round-trips the example-app against the live API. Tagged Category=Integration so
+// CI / dotnet test runs that filter on "Category!=Integration" skip them by default —
+// these tests cost real API quota. Each test also self-skips when POLI_PAGE_API_KEY
+// is absent, so an accidental run on an unconfigured environment passes silently
+// rather than failing red.
 [Trait("Category", "Integration")]
 public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<Program>>
 {

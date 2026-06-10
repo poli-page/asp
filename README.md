@@ -310,7 +310,7 @@ A runnable Minimal API + MVC app at [`example-app/`](example-app/) demonstrates 
 
 ```bash
 cd example-app
-POLI_PAGE_API_KEY=pp_test_… POLI_PAGE_BASE_URL=https://api-develop.poli.page dotnet run
+POLI_PAGE_API_KEY=pp_test_… dotnet run
 ```
 
 Or drop `POLI_PAGE_*` lines into the workspace root `.env` (`../.env`) — the example app loads them at startup; real shell exports always win.

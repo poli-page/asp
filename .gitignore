@@ -53,3 +53,6 @@ appsettings.Development.local.json
 docs/node_modules/
 docs/dist/
 docs/.astro/
+CLAUDE.md
+docs/plan/
+docs/spec/

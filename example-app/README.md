@@ -9,9 +9,7 @@ cd example-app
 # POLI_PAGE_API_KEY is sourced from the repo-root .env (../.env)
 # via Scripts/PoliPageWorkspaceEnvFile — no per-app .env needed.
 # Real shell exports always win, so you can override inline:
-POLI_PAGE_API_KEY=pp_test_xxx \
-POLI_PAGE_BASE_URL=https://api-develop.poli.page \
-  dotnet run
+POLI_PAGE_API_KEY=pp_test_xxx dotnet run
 
 # Or, with /Users/mickael/Projects/.env populated:
 dotnet run
