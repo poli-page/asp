@@ -15,7 +15,10 @@
 
     <!-- Build-time only -->
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
+    <!-- 10.0.9 matches the M.E.* family the SDK transitively brings in via M.E.Http;
+         pinning at 10.0.0 would cause NU1605 (downgrade). Keep aligned with whatever
+         floor sdk-csharp's Directory.Packages.props uses for the rest of M.E.*. -->
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.9" />
 
     <!-- Test dependencies -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
