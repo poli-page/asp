@@ -45,19 +45,28 @@ jobs:
         if: hashFiles('asp/.editorconfig') != ''
         run: dotnet format asp/PoliPage.AspNetCore.sln --verify-no-changes
 
+      # Build the whole solution without forcing a global -f: example-app and the
+      # integration tests target net10.0 only, so a solution-wide `-f net8.0` would fail
+      # (NETSDK1005). Each project builds its own declared TargetFrameworks; the library
+      # produces both net8.0 and net10.0 outputs needed by Pack.
       - name: Build
         if: hashFiles('asp/PoliPage.AspNetCore.sln') != ''
-        run: dotnet build asp/PoliPage.AspNetCore.sln -c Release --no-restore -f ${{ matrix.tfm }}
+        run: dotnet build asp/PoliPage.AspNetCore.sln -c Release --no-restore
 
+      # Exercise the unit tests against the matrix TFM. The unit-test project multi-targets
+      # net8.0;net10.0, so it can be addressed under either leg; the net10.0-only integration
+      # project is excluded here (and by Category!=Integration) so -f net8.0 stays valid.
       - name: Test
-        if: hashFiles('asp/tests/**/*.csproj') != ''
+        if: hashFiles('asp/tests/PoliPage.AspNetCore.Tests/*.csproj') != ''
         run: |
-          dotnet test asp/PoliPage.AspNetCore.sln \
+          dotnet test asp/tests/PoliPage.AspNetCore.Tests/PoliPage.AspNetCore.Tests.csproj \
             -c Release --no-build \
             -f ${{ matrix.tfm }} \
             --filter "Category!=Integration" \
             --collect "XPlat Code Coverage"
 
+      # Pack the library only. It multi-targets net8.0;net10.0 and the no-`-f` build above
+      # produced both, so NuGet finds every lib/<tfm> asset (no NU5026).
       - name: Pack
         if: hashFiles('asp/src/**/*.csproj') != ''
-        run: dotnet pack asp/PoliPage.AspNetCore.sln -c Release --no-build
+        run: dotnet pack asp/src/PoliPage.AspNetCore/PoliPage.AspNetCore.csproj -c Release --no-build
