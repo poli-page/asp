@@ -58,6 +58,9 @@ jobs:
       # project is excluded here (and by Category!=Integration) so -f net8.0 stays valid.
       - name: Test
         if: hashFiles('asp/tests/PoliPage.AspNetCore.Tests/*.csproj') != ''
+        # Force bash on every OS: the line-continuation (\) syntax below is not valid in
+        # PowerShell, the default shell on windows-latest.
+        shell: bash
         run: |
           dotnet test asp/tests/PoliPage.AspNetCore.Tests/PoliPage.AspNetCore.Tests.csproj \
             -c Release --no-build \
