@@ -1,5 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <!-- Override the parent's net8.0;net10.0. The runner's dotnet image ships only the
+         net10.0 shared runtime, so a net8.0 testhost aborts with "You must install or
+         update .NET". src/ still multi-targets net8.0 for LTS consumers; we run the unit
+         tests on net10.0 only. Mirrors IntegrationTests, which is already net10.0-only. -->
+    <TargetFrameworks>net10.0</TargetFrameworks>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <!--
