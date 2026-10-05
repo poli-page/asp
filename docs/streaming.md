@@ -69,7 +69,7 @@ public class StatementsController(
 }
 ```
 
-`PoliPageResponseFactory.PdfStream` returns a `FileStreamResult` — ASP.NET Core's MVC layer handles the body copy and stream disposal. The factory writes the `Content-Disposition` directly to `HttpContext.Response.Headers` (to keep the RFC 5987 encoding) before returning the `FileStreamResult`.
+`PoliPageResponseFactory.PdfStream` returns a `FileStreamResult` — ASP.NET Core's MVC layer handles the body copy and stream disposal. MVC writes `Content-Disposition` from `FileDownloadName` (RFC 6266 dual form); the factory strips control characters from the filename first.
 
 ## Inline rendering
 
