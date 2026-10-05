@@ -96,7 +96,7 @@ app.MapGet("/render/preview/{templateId}", async Task<Results<ContentHttpResult,
 });
 ```
 
-`PoliPageResults.Pdf`, `PdfStream`, `Preview`, `DocumentRedirect` all implement `IResult` but are not `TypedResults`-shaped — they're untyped on purpose so the headers contract stays under the helper's control rather than competing with `Microsoft.AspNetCore.Http.HttpResults`. If you need a typed result in a `Results<...>` union, return `TypedResults.File(pdf, "application/pdf", $"invoice-{id}.pdf")` instead and accept that you'll lose the RFC 5987 filename encoding for non-ASCII names.
+`PoliPageResults.Pdf`, `PdfStream`, `Preview`, `DocumentRedirect` all implement `IResult` but are not `TypedResults`-shaped — they're untyped on purpose so the headers contract stays under the helper's control rather than competing with `Microsoft.AspNetCore.Http.HttpResults`. If you need a typed result in a `Results<...>` union, return `TypedResults.File(pdf, "application/pdf", $"invoice-{id}.pdf")` instead and accept that you'll lose the control-character stripping of the filename (the RFC 6266 encoding itself is the same framework helper).
 
 ## OpenAPI annotations
 
@@ -191,7 +191,7 @@ app.MapPoliPageSmokeTest()
 ## Gotchas
 
 - **`Stream pdfStream` from `Render.PdfStreamAsync`** must be disposed. Returning `PoliPageResults.PdfStream(stream, ...)` transfers ownership to the result, which disposes after the body copy completes. Do **not** wrap the call in a `using` — you'll dispose the stream before the response body writer reads it.
-- **`TypedResults` and `PoliPageResults` are not interchangeable.** `TypedResults.File(...)` returns a typed `FileContentHttpResult` that ASP.NET serializes via OpenAPI but skips the RFC 5987 filename encoding. `PoliPageResults.Pdf(...)` is untyped but encodes correctly. Pick based on whether your filenames can be non-ASCII.
+- **`TypedResults` and `PoliPageResults` are not interchangeable.** `TypedResults.File(...)` returns a typed `FileContentHttpResult` that ASP.NET serializes via OpenAPI; it encodes the filename with the same framework helper but keeps control characters. `PoliPageResults.Pdf(...)` is untyped and strips them. Pick based on whether your filenames can come from untrusted data.
 - **Per-endpoint authorization clobbers group policies if you specify both.** `render.RequireAuthorization("Renderer")` on the group + `.AllowAnonymous()` on a single endpoint disables auth for that endpoint only — useful for a public-by-design preview, dangerous if accidental.
 
 ## Related

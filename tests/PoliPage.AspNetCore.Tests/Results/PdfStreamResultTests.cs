@@ -18,7 +18,7 @@ public class PdfStreamResultTests
 
         httpContext.Response.ContentType.Should().Be("application/pdf");
         httpContext.Response.Headers.ContentDisposition.ToString()
-            .Should().Be("attachment; filename=\"invoice.pdf\"");
+            .Should().Be("attachment; filename=invoice.pdf; filename*=UTF-8''invoice.pdf");
         httpContext.Response.Headers.CacheControl.ToString().Should().Be("no-store, private");
         httpContext.Response.Headers["X-Content-Type-Options"].ToString().Should().Be("nosniff");
         body.ToArray().Should().Equal(pdf);
@@ -33,7 +33,7 @@ public class PdfStreamResultTests
         await PoliPageResults.PdfStream(source, "invoice.pdf", inline: true).ExecuteAsync(httpContext);
 
         httpContext.Response.Headers.ContentDisposition.ToString()
-            .Should().Be("inline; filename=\"invoice.pdf\"");
+            .Should().Be("inline; filename=invoice.pdf; filename*=UTF-8''invoice.pdf");
     }
 
     [Fact]

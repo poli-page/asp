@@ -92,19 +92,15 @@ The cache header and nosniff defaults come from `PoliPageAspNetCoreOptions`. Set
 
 ## Filename encoding
 
-ASCII-safe filenames produce a basic single-parameter header:
+The header is built by ASP.NET Core's own `Microsoft.Net.Http.Headers.ContentDispositionHeaderValue.SetHttpFileName` — the same helper MVC's `FileResult` uses — so both surfaces emit the RFC 6266 dual form: an ASCII `filename` fallback (non-ASCII characters replaced by `_`, quoted and with `\` and `"` escaped as quoted-pairs when needed) plus a UTF-8 percent-encoded `filename*` for modern clients:
 
 ```
-Content-Disposition: attachment; filename="invoice-INV-42.pdf"
+Content-Disposition: attachment; filename=invoice-INV-42.pdf; filename*=UTF-8''invoice-INV-42.pdf
+Content-Disposition: attachment; filename="facture-_t_ 2026.pdf"; filename*=UTF-8''facture-%C3%A9t%C3%A9%202026.pdf
+Content-Disposition: attachment; filename="say \"hi\".pdf"; filename*=UTF-8''say%20%22hi%22.pdf
 ```
 
-Non-ASCII filenames produce the dual-parameter RFC 5987 form, with an ASCII fallback for ancient clients and a UTF-8 percent-encoded `filename*` for modern ones:
-
-```
-Content-Disposition: attachment; filename="facture-_____.pdf"; filename*=UTF-8''facture-%C3%A9t%C3%A9%202026.pdf
-```
-
-The encoding lives in the internal `ContentDispositionHeader.Build` and is identical to the symfony-bundle's `PoliPageResponseFactory::makeDisposition()` algorithm. You do not call it directly — it runs whenever you pass `filename:` to `PoliPageResults.Pdf` / `PdfStream` or `PoliPageResponseFactory.Pdf` / `PdfStream`.
+Before that, control characters (C0 including TAB/CR/LF, DEL, C1) are stripped from the filename — the framework helper would otherwise keep them as `_` in the fallback and as `%0D%0A`-style escapes in `filename*`. A filename made only of control characters is rejected with an `ArgumentException`, like an empty one. You do not call any of this directly — it runs whenever you pass `filename:` to `PoliPageResults.Pdf` / `PdfStream` or `PoliPageResponseFactory.Pdf` / `PdfStream`.
 
 ## OpenAPI metadata is automatic
 
@@ -122,7 +118,7 @@ For the MVC surface, `[ProducesResponseType(StatusCodes.Status200OK, Type = type
 
 ## Gotchas
 
-- **MVC's `FileContentResult.FileDownloadName` writes a basic header**, not the RFC 5987 dual form. If you `new FileContentResult(pdf, "application/pdf") { FileDownloadName = "été.pdf" }` yourself, the non-ASCII characters get mangled. `PoliPageResponseFactory.Pdf(...)` writes the header via `HttpContext.Response.Headers.ContentDisposition` directly to avoid this — keep using it instead of the bare `FileContentResult` constructor when filenames can be non-ASCII.
+- **A bare `FileContentResult` keeps control characters.** `new FileContentResult(pdf, "application/pdf") { FileDownloadName = name }` gets the same RFC 6266 encoding, but CR/LF/TAB survive as `_` and `%0D%0A`. `PoliPageResponseFactory.Pdf(...)` strips them before handing the name to MVC — prefer it when the filename comes from user or template data.
 - **`PoliPageResults.Pdf` buffers the whole byte array** into the response body in one `WriteAsync`. For 10 MB+ documents, prefer `PoliPageResults.PdfStream(client.Render.PdfStreamAsync(...))` — see [streaming.md](streaming.md).
 - **`Preview` returns the HTML verbatim.** The SDK already renders the HTML; this helper does not re-render, re-escape, or sanitize. If you accept user-controlled `Data` and the template echoes it raw, that's a template authoring issue, not a helper issue.
 - **`DocumentRedirect`** issues a 302 to a presigned S3 URL with a 15-minute TTL. Don't store the URL in a database or pass it to a job queue — fetch a fresh one with `client.Documents.GetAsync(id)` each time.

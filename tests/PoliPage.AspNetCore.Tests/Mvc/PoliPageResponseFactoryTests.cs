@@ -28,6 +28,25 @@ public class PoliPageResponseFactoryTests
     }
 
     [Fact]
+    public void Pdf_strips_control_chars_from_FileDownloadName()
+    {
+        var result = CreateFactory().Pdf("%PDF-x"u8.ToArray(), "résumé\r\n\t\u0085\u007f.pdf");
+
+        // MVC builds the header with ContentDispositionHeaderValue, which escapes `\` and `"`
+        // but would keep control characters (as `_` and %0D%0A); they are stripped up front.
+        result.FileDownloadName.Should().Be("résumé.pdf");
+    }
+
+    [Fact]
+    public void PdfStream_strips_control_chars_from_FileDownloadName()
+    {
+        using var source = new MemoryStream("%PDF-x"u8.ToArray());
+        var result = CreateFactory().PdfStream(source, "evil.pdf\r\nSet-Cookie: sid=1");
+
+        result.FileDownloadName.Should().Be("evil.pdfSet-Cookie: sid=1");
+    }
+
+    [Fact]
     public void Pdf_throws_on_null_byte_array()
     {
         Action act = () => CreateFactory().Pdf(null!);

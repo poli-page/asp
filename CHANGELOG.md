@@ -4,7 +4,13 @@ All notable changes to `PoliPage.AspNetCore` are documented here. Format follows
 
 ## [Unreleased]
 
-_No unreleased changes._
+### Fixed
+- `PoliPageResults.Pdf` / `PdfStream`: the `Content-Disposition` filename now has `\` escaped as well as `"` (a trailing backslash used to escape the closing quote), and control characters (CR/LF, TAB, DEL, C1) are stripped instead of surviving as `_` / `%0D%0A`. A filename made only of control characters throws `ArgumentException`, like an empty one.
+- `PoliPageResponseFactory.Pdf` / `PdfStream`: control characters are stripped from `FileDownloadName`.
+- Build: `Microsoft.SourceLink.GitHub` 8.0.0 → 10.0.303 (its `Microsoft.Build.Tasks.Git` 8.0.0 is flagged by GHSA-23fw-v26w-5fgq, which failed restore under `TreatWarningsAsErrors`).
+
+### Changed
+- `PoliPageResults.Pdf` / `PdfStream` now build `Content-Disposition` with ASP.NET Core's `ContentDispositionHeaderValue.SetHttpFileName` (the helper MVC's `FileResult` uses), so the Minimal API and MVC surfaces emit the same header: always the dual `filename=…; filename*=UTF-8''…` form, with the ASCII `filename` left unquoted when it is a plain token (`attachment; filename=invoice.pdf; filename*=UTF-8''invoice.pdf`).
 
 ## [0.1.0] — 2026-06-01
 

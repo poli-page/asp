@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using PoliPage.AspNetCore.Internal;
 
 namespace PoliPage.AspNetCore;
 
@@ -12,9 +13,9 @@ namespace PoliPage.AspNetCore;
 /// <see cref="ContentResult"/>, <see cref="RedirectResult"/>.
 /// </summary>
 /// <remarks>
-/// RFC 5987 non-ASCII filename encoding is intentionally not handled here; the README and
-/// <c>docs/responses.md</c> document the manual header-writing pattern for controllers that
-/// need it. The Minimal API helpers in <c>PoliPageResults</c> handle it automatically.
+/// The <c>Content-Disposition</c> header is written by MVC's <see cref="FileResult"/> from
+/// <see cref="FileResult.FileDownloadName"/> (RFC 6266 dual form, non-ASCII safe). Control
+/// characters are stripped from the filename before it is handed to MVC.
 /// </remarks>
 public sealed class PoliPageResponseFactory
 {
@@ -37,7 +38,7 @@ public sealed class PoliPageResponseFactory
     /// <param name="pdf">The rendered PDF bytes.</param>
     /// <param name="filename">
     /// Filename for the download dialog. Ignored when <paramref name="inline"/> is
-    /// <see langword="true"/>. ASCII filenames only — see remarks on
+    /// <see langword="true"/>. Control characters are stripped — see remarks on
     /// <see cref="PoliPageResponseFactory"/>.
     /// </param>
     /// <param name="inline">
@@ -49,7 +50,7 @@ public sealed class PoliPageResponseFactory
         ArgumentNullException.ThrowIfNull(pdf);
         return new FileContentResult(pdf, "application/pdf")
         {
-            FileDownloadName = inline ? string.Empty : (filename ?? string.Empty),
+            FileDownloadName = inline ? string.Empty : ContentDispositionHeader.StripControlChars(filename ?? string.Empty),
         };
     }
 
@@ -66,7 +67,7 @@ public sealed class PoliPageResponseFactory
         ArgumentNullException.ThrowIfNull(pdfStream);
         return new FileStreamResult(pdfStream, "application/pdf")
         {
-            FileDownloadName = inline ? string.Empty : (filename ?? string.Empty),
+            FileDownloadName = inline ? string.Empty : ContentDispositionHeader.StripControlChars(filename ?? string.Empty),
         };
     }
 
