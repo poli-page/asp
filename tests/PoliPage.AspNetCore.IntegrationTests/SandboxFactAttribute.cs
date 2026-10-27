@@ -6,7 +6,6 @@ namespace PoliPage.AspNetCore.IntegrationTests;
 // counted, while any other environment (live, staging, …) counts toward the organization's PDF
 // quota. xUnit 2 has no runtime skip (Assert.Skip is xUnit 3), so Skip is set at discovery and
 // the runner reports the test as skipped instead of passing it without a request.
-[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 public sealed class SandboxFactAttribute : FactAttribute
 {
     public SandboxFactAttribute()

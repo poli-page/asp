@@ -272,6 +272,7 @@ Tag with `[Trait("Category", "Integration")]` so `dotnet test --filter "Category
 
 ```csharp
 using System.Text.RegularExpressions;
+using Xunit;
 
 public sealed class SandboxFactAttribute : FactAttribute
 {
