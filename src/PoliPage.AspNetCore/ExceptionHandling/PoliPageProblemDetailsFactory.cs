@@ -49,16 +49,13 @@ internal sealed class PoliPageProblemDetailsFactory
         return problem;
     }
 
-    // Status / problem-code / title resolution. Confirmed against
-    // /Users/mickael/Projects/sdk-csharp/src/PoliPage/Exceptions/ on 2026-06-01
-    // (see docs/sdk-surface-audit-2026-06-01.md §0.1). The exception's wire-level
-    // Code is exposed separately under Extensions["code"]; the label below is the
-    // public problem-code that surfaces in the Type URI fragment.
+    // Status / problem-code / title resolution for the exception types PoliPage 0.10.0 ships.
+    // The exception's wire-level Code is exposed separately under Extensions["code"]; the label
+    // below is the public problem-code that surfaces in the Type URI fragment.
     private static (int status, string code, string title) Map(PoliPageException exception)
         => exception switch
         {
             PoliPageAuthException => (StatusCodes.Status401Unauthorized, "authentication_failed", "Authentication failed"),
-            PoliPagePaymentRequiredException => (StatusCodes.Status402PaymentRequired, "payment_required", "Payment required"),
             PoliPageNotFoundException => (StatusCodes.Status404NotFound, "not_found", "Not found"),
             PoliPageGoneException => (StatusCodes.Status410Gone, "gone", "Resource permanently gone"),
             PoliPageValidationException ex => (ex.StatusCode == 400

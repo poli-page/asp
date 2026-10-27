@@ -3,10 +3,10 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
-    <!-- Aligned with the SDK's own Directory.Build.props which packs as 0.9.0. The local nuget source
-         (../sdk-csharp/artifacts/package/release) wins until nuget.org publishes PoliPage 0.9.0, at
-         which point removing nuget.config (Task 18.2) silently switches resolution to the registry. -->
-    <PackageVersion Include="PoliPage" Version="0.9.0" />
+    <!-- 0.10.0 is the SDK's environments release (RenderInput, no template versions). Until it is on
+         nuget.org (which has only 0.9.x, the old API), it resolves only from the local source
+         ../sdk-csharp/artifacts/package/release that CI fills with `dotnet pack` of sdk-csharp main. -->
+    <PackageVersion Include="PoliPage" Version="0.10.0" />
 
     <!-- Analyzers (match sdk-csharp set) -->
     <PackageVersion Include="Meziantou.Analyzer" Version="2.0.183" />
@@ -15,10 +15,10 @@
 
     <!-- Build-time only -->
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.303" />
-    <!-- 10.0.9 matches the M.E.* family the SDK transitively brings in via M.E.Http;
+    <!-- 10.0.13 matches the M.E.* family the SDK transitively brings in via M.E.Http;
          pinning at 10.0.0 would cause NU1605 (downgrade). Keep aligned with whatever
          floor sdk-csharp's Directory.Packages.props uses for the rest of M.E.*. -->
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.13" />
 
     <!-- Test dependencies -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />

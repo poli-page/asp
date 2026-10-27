@@ -61,7 +61,7 @@ internal sealed class PoliPageTestHost : IAsyncDisposable
         builder.Logging.SetMinimumLevel(LogLevel.Debug);
 
         builder.Services.AddPoliPageAspNetCore(
-            opts => opts.ApiKey = "pp_test_factory",
+            opts => opts.ApiKey = TestKeys.Sandbox,
             configureAspNet);
 
         // Replace the SDK's PoliPageClient registration. The SDK's singleton factory does

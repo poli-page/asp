@@ -3,10 +3,10 @@ using System.Text.Json;
 namespace PoliPage.AspNetCore.IntegrationTests;
 
 // Round-trips the example-app against the live API. Tagged Category=Integration so
-// CI / dotnet test runs that filter on "Category!=Integration" skip them by default —
-// these tests cost real API quota. Each test also self-skips when POLI_PAGE_API_KEY
-// is absent, so an accidental run on an unconfigured environment passes silently
-// rather than failing red.
+// CI / dotnet test runs that filter on "Category!=Integration" skip them by default.
+// Each test also self-skips unless POLI_PAGE_API_KEY is a sandbox key: sandbox renders are
+// watermarked and not counted, while any other environment (live, staging, …) counts
+// toward the organization's PDF quota.
 [Trait("Category", "Integration")]
 public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<Program>>
 {
@@ -17,7 +17,7 @@ public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<
     [Fact]
     public async Task Smoke_endpoint_round_trips_against_develop()
     {
-        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("POLI_PAGE_API_KEY")))
+        if (!HasSandboxKey())
             return;
 
         using var client = _factory.CreateClient();
@@ -34,7 +34,7 @@ public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<
     [Fact]
     public async Task Render_pdf_endpoint_round_trips_against_develop()
     {
-        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("POLI_PAGE_API_KEY")))
+        if (!HasSandboxKey())
             return;
 
         using var client = _factory.CreateClient();
@@ -50,28 +50,9 @@ public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<
     }
 
     [Fact]
-    public async Task Render_preview_endpoint_round_trips_against_develop()
-    {
-        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("POLI_PAGE_API_KEY")))
-            return;
-
-        using var client = _factory.CreateClient();
-        var response = await client.GetAsync("/render/preview");
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        // MediaTypeHeaderValue splits "text/html; charset=utf-8" into MediaType + CharSet.
-        response.Content.Headers.ContentType?.MediaType.Should().Be("text/html");
-        response.Content.Headers.ContentType?.CharSet.Should().Be("utf-8");
-
-        var html = await response.Content.ReadAsStringAsync();
-        html.Should().NotBeNullOrWhiteSpace();
-        html.Length.Should().BeGreaterThan(1024);
-    }
-
-    [Fact]
     public async Task Documents_create_round_trips_against_develop()
     {
-        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("POLI_PAGE_API_KEY")))
+        if (!HasSandboxKey())
             return;
 
         using var client = _factory.CreateClient();
@@ -91,4 +72,27 @@ public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<
         var deleteResponse = await client.DeleteAsync($"/documents/{documentId}");
         deleteResponse.StatusCode.Should().BeOneOf(HttpStatusCode.NoContent, HttpStatusCode.OK);
     }
+
+    [Fact]
+    public async Task Not_found_demo_answers_404_template_not_found_against_develop()
+    {
+        if (!HasSandboxKey())
+            return;
+
+        using var client = _factory.CreateClient();
+        var response = await client.GetAsync("/errors/not-found");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
+
+        using var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        problem.RootElement.GetProperty("code").GetString().Should().Be("TEMPLATE_NOT_FOUND");
+        problem.RootElement.GetProperty("status").GetInt32().Should().Be(404);
+        problem.RootElement.GetProperty("detail").GetString().Should().NotBeNullOrWhiteSpace();
+        problem.RootElement.GetProperty("poliPageRequestId").GetString().Should().NotBeNullOrWhiteSpace();
+    }
+
+    private static bool HasSandboxKey() =>
+        Environment.GetEnvironmentVariable("POLI_PAGE_API_KEY") is { } key
+        && key.StartsWith("pp_sandbox_", StringComparison.Ordinal);
 }

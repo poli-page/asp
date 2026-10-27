@@ -1,4 +1,5 @@
 using System.Linq;
+using PoliPage.AspNetCore.Tests.Fixtures;
 
 namespace PoliPage.AspNetCore.Tests.DependencyInjection;
 
@@ -10,7 +11,7 @@ public class AddPoliPageAspNetCoreTests
         var services = new ServiceCollection();
         services.AddLogging();
 
-        services.AddPoliPageAspNetCore(opts => opts.ApiKey = "pp_test_x");
+        services.AddPoliPageAspNetCore(opts => opts.ApiKey = TestKeys.Sandbox);
 
         using var provider = services.BuildServiceProvider();
         var first = provider.GetRequiredService<PoliPageClient>();
@@ -24,7 +25,7 @@ public class AddPoliPageAspNetCoreTests
         var services = new ServiceCollection();
         services.AddLogging();
 
-        services.AddPoliPageAspNetCore(opts => opts.ApiKey = "pp_test_x");
+        services.AddPoliPageAspNetCore(opts => opts.ApiKey = TestKeys.Sandbox);
 
         using var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<IOptions<PoliPageAspNetCoreOptions>>().Value;
@@ -41,7 +42,7 @@ public class AddPoliPageAspNetCoreTests
         services.AddLogging();
 
         services.AddPoliPageAspNetCore(
-            opts => opts.ApiKey = "pp_test_x",
+            opts => opts.ApiKey = TestKeys.Sandbox,
             aspnet =>
             {
                 aspnet.ProblemDetailsTypeUri = "https://example.com/errors";
@@ -60,7 +61,7 @@ public class AddPoliPageAspNetCoreTests
         var services = new ServiceCollection();
         services.AddLogging();
 
-        services.AddPoliPageAspNetCore(opts => opts.ApiKey = "pp_test_x");
+        services.AddPoliPageAspNetCore(opts => opts.ApiKey = TestKeys.Sandbox);
 
         using var provider = services.BuildServiceProvider();
         var first = provider.GetRequiredService<PoliPageResponseFactory>();
@@ -74,8 +75,8 @@ public class AddPoliPageAspNetCoreTests
         var services = new ServiceCollection();
         services.AddLogging();
 
-        services.AddPoliPageAspNetCore(opts => opts.ApiKey = "pp_test_x");
-        services.AddPoliPageAspNetCore(opts => opts.ApiKey = "pp_test_x");
+        services.AddPoliPageAspNetCore(opts => opts.ApiKey = TestKeys.Sandbox);
+        services.AddPoliPageAspNetCore(opts => opts.ApiKey = TestKeys.Sandbox);
 
         services.Count(d => d.ServiceType == typeof(PoliPageResponseFactory)).Should().Be(1);
         services.Count(d => d.ServiceType == typeof(PoliPageClient)).Should().Be(1);
@@ -87,8 +88,8 @@ public class AddPoliPageAspNetCoreTests
         var services = new ServiceCollection();
         services.AddLogging();
 
-        services.AddPoliPage(opts => opts.ApiKey = "pp_test_x");
-        services.AddPoliPageAspNetCore(opts => opts.ApiKey = "pp_test_x");
+        services.AddPoliPage(opts => opts.ApiKey = TestKeys.Sandbox);
+        services.AddPoliPageAspNetCore(opts => opts.ApiKey = TestKeys.Sandbox);
 
         services.Count(d => d.ServiceType == typeof(PoliPageClient)).Should().Be(1);
     }
@@ -99,7 +100,7 @@ public class AddPoliPageAspNetCoreTests
         var services = new ServiceCollection();
         services.AddLogging();
 
-        services.AddPoliPageAspNetCore(opts => opts.ApiKey = "pp_test_x");
+        services.AddPoliPageAspNetCore(opts => opts.ApiKey = TestKeys.Sandbox);
 
         services.Any(d =>
             d.ImplementationType?.FullName ==
@@ -114,7 +115,7 @@ public class AddPoliPageAspNetCoreTests
         services.AddLogging();
 
         services.AddPoliPageAspNetCore(
-            opts => opts.ApiKey = "pp_test_x",
+            opts => opts.ApiKey = TestKeys.Sandbox,
             aspnet => aspnet.RegisterExceptionHandler = false);
 
         services.Any(d =>
@@ -129,7 +130,7 @@ public class AddPoliPageAspNetCoreTests
         var services = new ServiceCollection();
         services.AddLogging();
 
-        services.AddPoliPageAspNetCore(opts => opts.ApiKey = "pp_test_x");
+        services.AddPoliPageAspNetCore(opts => opts.ApiKey = TestKeys.Sandbox);
 
         services.Any(d =>
             d.ServiceType.FullName == "Microsoft.AspNetCore.Http.IProblemDetailsService")
@@ -143,7 +144,7 @@ public class AddPoliPageAspNetCoreTests
         services.AddLogging();
 
         services.AddPoliPageAspNetCore(
-            opts => opts.ApiKey = "pp_test_x",
+            opts => opts.ApiKey = TestKeys.Sandbox,
             aspnet =>
             {
                 aspnet.AddProblemDetailsService = false;
@@ -163,7 +164,7 @@ public class AddPoliPageAspNetCoreTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["PoliPage:ApiKey"] = "pp_test_bound",
+                ["PoliPage:ApiKey"] = TestKeys.Live,
                 ["PoliPage:MaxRetries"] = "5",
                 ["PoliPage:RequestTimeout"] = "00:00:30",
             })
@@ -176,7 +177,7 @@ public class AddPoliPageAspNetCoreTests
 
         using var provider = services.BuildServiceProvider();
         var clientOptions = provider.GetRequiredService<IOptions<PoliPageClientOptions>>().Value;
-        clientOptions.ApiKey.Should().Be("pp_test_bound");
+        clientOptions.ApiKey.Should().Be(TestKeys.Live);
         clientOptions.MaxRetries.Should().Be(5);
         clientOptions.RequestTimeout.Should().Be(TimeSpan.FromSeconds(30));
     }
@@ -187,7 +188,7 @@ public class AddPoliPageAspNetCoreTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["PoliPage:ApiKey"] = "pp_test_x",
+                ["PoliPage:ApiKey"] = TestKeys.Sandbox,
                 ["PoliPage:AspNetCore:ProblemDetailsTypeUri"] = "https://example.com/errors",
                 ["PoliPage:AspNetCore:SetNoSniffHeader"] = "false",
             })
@@ -210,7 +211,7 @@ public class AddPoliPageAspNetCoreTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["PoliPage:ApiKey"] = "pp_test_bound",
+                ["PoliPage:ApiKey"] = TestKeys.Live,
                 ["PoliPage:MaxRetries"] = "5",
             })
             .Build();
@@ -224,7 +225,7 @@ public class AddPoliPageAspNetCoreTests
 
         using var provider = services.BuildServiceProvider();
         var clientOptions = provider.GetRequiredService<IOptions<PoliPageClientOptions>>().Value;
-        clientOptions.ApiKey.Should().Be("pp_test_bound");
+        clientOptions.ApiKey.Should().Be(TestKeys.Live);
         clientOptions.MaxRetries.Should().Be(9);
     }
 }

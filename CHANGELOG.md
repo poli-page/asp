@@ -4,6 +4,19 @@ All notable changes to `PoliPage.AspNetCore` are documented here. Format follows
 
 ## [Unreleased]
 
+### Changed (breaking)
+- Built against `PoliPage` 0.10.0, the SDK's environments release: an API key is `pp_{env}_{32 lowercase hex}` and selects the environment (`pp_sandbox_…`, `pp_live_…`, or one created on Pro+ such as `pp_staging_…`); the old test-key prefix is gone. There are no template versions: inputs are `RenderInput` with no `Version`.
+- `MapPoliPageSmokeTest` renders `getting-started/welcome` without a version. The project is published into every organization's `sandbox` environment, so the smoke endpoint works out of the box with a sandbox key.
+- ProblemDetails mapping follows the SDK 0.10.0 exception types: `PoliPagePaymentRequiredException` (402) is gone (payment grace is `403 ORGANIZATION_PAYMENT_GRACE`, a `PoliPageAuthException`); `PoliPageGoneException` (410) now carries `DOCUMENT_GONE`.
+- `Microsoft.Extensions.Configuration.Binder` 10.0.9 → 10.0.13, matching the `Microsoft.Extensions.*` floor `PoliPage` 0.10.0 brings in (NU1605 otherwise).
+
+### Added
+- Startup warning when `ApiKey` does not match `pp_{env}_{32 lowercase hex}` (`EventId` 3001, or 3002 when the environment name itself is malformed). The host still starts and the API stays the authority on keys; the warning shows at most the `pp_{env}_` part and never the secret. A missing or empty key still fails startup.
+
+### Removed
+- Example app: `GET /render/preview` and `GET /invoices/{id}/preview` (the SDK dropped `Render.PreviewAsync`), with their dashboard button and README rows. `GET /documents/{id}/preview` (`Documents.PreviewAsync`) stays.
+- Example app: `GET /errors/bad-version`, replaced by `GET /errors/not-found`, a real render of `getting-started` / `does-not-exist` with `{}` that the `IExceptionHandler` answers with a `404` ProblemDetails, code `TEMPLATE_NOT_FOUND`. The dashboard shows its `code`, `status`, `message` and `requestId`.
+
 ### Fixed
 - `PoliPageResults.Pdf` / `PdfStream`: the `Content-Disposition` filename now has `\` escaped as well as `"` (a trailing backslash used to escape the closing quote), and control characters (CR/LF, TAB, DEL, C1) are stripped instead of surviving as `_` / `%0D%0A`. A filename made only of control characters throws `ArgumentException`, like an empty one.
 - `PoliPageResponseFactory.Pdf` / `PdfStream`: control characters are stripped from `FileDownloadName`.

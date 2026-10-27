@@ -6,17 +6,29 @@ internal static class ErrorEndpoints
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        endpoints.MapGet("/errors/bad-version", BadVersionAsync);
+        endpoints.MapGet("/errors/not-found", NotFoundAsync);
         return endpoints;
     }
 
-    // Deliberately throws PoliPageValidationException so the IExceptionHandler maps it to
-    // a 400 + application/problem+json response. The demo dashboard pretty-prints the JSON
-    // body to show what hosts will see when the SDK surfaces a typed exception.
-    private static Task BadVersionAsync(HttpContext _) =>
-        throw new PoliPageValidationException(
-            PoliPageErrorCode.InvalidVersionFormat,
-            400,
-            "The version 'banana' does not match the required semver pattern.",
-            requestId: "req_demo_invalid_version");
+    // A real render of a template that does not exist: the API answers 404 TEMPLATE_NOT_FOUND,
+    // the SDK throws PoliPageNotFoundException, and the IExceptionHandler registered by
+    // AddPoliPageAspNetCore turns it into a 404 ProblemDetails carrying code, status, detail
+    // (the message) and poliPageRequestId. The demo dashboard shows those four fields.
+    private static async Task NotFoundAsync(HttpContext httpContext)
+    {
+        var client = httpContext.RequestServices.GetRequiredService<PoliPageClient>();
+        await client.Render.PdfAsync(
+            new RenderInput
+            {
+                Project = "getting-started",
+                Template = "does-not-exist",
+                Data = new { },
+            },
+            cancellationToken: httpContext.RequestAborted);
+
+        await TypedResults.Problem(
+                detail: "Expected 404 TEMPLATE_NOT_FOUND, but the render succeeded.",
+                statusCode: StatusCodes.Status500InternalServerError)
+            .ExecuteAsync(httpContext);
+    }
 }

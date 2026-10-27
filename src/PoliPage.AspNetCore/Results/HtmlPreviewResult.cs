@@ -7,11 +7,8 @@ using Microsoft.Extensions.Options;
 
 namespace PoliPage.AspNetCore.Results;
 
-// Named HtmlPreviewResult (not PreviewResult) to disambiguate from PoliPage.PreviewResult,
-// which the SDK ships as the JSON-shaped return type of Render.PreviewAsync. C#'s name
-// resolution prefers enclosing-namespace types over file-level using aliases, so a bare
-// "PreviewResult" inside any namespace nested under PoliPage.* resolves to the SDK type.
-// This class is internal — consumers see PoliPageResults.Preview(string) instead.
+// Writes HTML such as the stored preview of a rendered document (Documents.PreviewAsync →
+// DocumentPreviewResult.Html). This class is internal — consumers see PoliPageResults.Preview(string).
 internal sealed class HtmlPreviewResult(string html) : IResult, IEndpointMetadataProvider
 {
     public async Task ExecuteAsync(HttpContext httpContext)

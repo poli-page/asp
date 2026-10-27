@@ -143,6 +143,7 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<PoliPageResponseFactory>();
         services.AddSingleton<PoliPageProblemDetailsFactory>();
+        services.AddHostedService<ApiKeyFormatWarning>();
 
         if (aspnet.AddProblemDetailsService)
             services.AddProblemDetails();

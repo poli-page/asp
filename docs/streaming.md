@@ -18,11 +18,10 @@ app.MapGet("/statements/{accountId}.pdf", async (
     CancellationToken cancellationToken) =>
 {
     var stream = await client.Render.PdfStreamAsync(
-        new ProjectModeInput
+        new RenderInput
         {
             Project = "statements",
             Template = "monthly",
-            Version = "2.3.0",
             Data = new { AccountId = accountId },
         },
         cancellationToken: cancellationToken);
@@ -55,11 +54,10 @@ public class StatementsController(
     public async Task<IActionResult> Show(string accountId, CancellationToken cancellationToken)
     {
         var stream = await client.Render.PdfStreamAsync(
-            new ProjectModeInput
+            new RenderInput
             {
                 Project = "statements",
                 Template = "monthly",
-                Version = "2.3.0",
                 Data = new { AccountId = accountId },
             },
             cancellationToken: cancellationToken);

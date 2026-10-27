@@ -57,11 +57,10 @@ public static class EndpointRouteBuilderExtensions
         var client = httpContext.RequestServices.GetRequiredService<PoliPageClient>();
 
         var pdf = await client.Render.PdfAsync(
-            new ProjectModeInput
+            new RenderInput
             {
                 Project = "getting-started",
                 Template = "welcome",
-                Version = "1.0.0",
                 Data = new { name = "PoliPage.AspNetCore" },
             },
             cancellationToken: httpContext.RequestAborted).ConfigureAwait(false);

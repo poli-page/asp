@@ -22,11 +22,10 @@ render.MapGet("/invoices/{id}.pdf", async (
     CancellationToken cancellationToken) =>
 {
     var pdf = await client.Render.PdfAsync(
-        new ProjectModeInput
+        new RenderInput
         {
             Project = "invoices",
             Template = "default",
-            Version = "1.0.0",
             Data = new { InvoiceId = id },
         },
         cancellationToken: cancellationToken);
@@ -42,20 +41,21 @@ Every endpoint in the group inherits the `Renderer` policy and the `PoliPage` Op
 
 ## Strongly-typed request bodies
 
-The SDK's input types are POCOs, so the `[FromBody]` binder accepts them directly. For the inline-HTML mode:
+Bind the caller's body to your own record and map it onto `RenderInput`, so the endpoint decides which project the caller may render. The API key picks the environment, so there is no version to pass:
 
 ```csharp
-public sealed record RenderRequest(string Html, object? Data);
+public sealed record RenderRequest(string Template, JsonElement? Data);
 
-app.MapPost("/render/custom", async (
+render.MapPost("/custom", async (
     [FromBody] RenderRequest request,
     PoliPageClient client,
     CancellationToken cancellationToken) =>
 {
     var pdf = await client.Render.PdfAsync(
-        new InlineModeInput
+        new RenderInput
         {
-            Template = request.Html,
+            Project = "invoices",
+            Template = request.Template,
             Data = request.Data,
         },
         cancellationToken: cancellationToken);
@@ -66,26 +66,19 @@ app.MapPost("/render/custom", async (
 
 ## Returning multiple result types
 
-When an endpoint can return either a PDF or a ProblemDetails error, declare a `Results<...>` union so the framework knows which type to expose in OpenAPI:
+When an endpoint can return either content or an error, declare a `Results<...>` union so the framework knows which type to expose in OpenAPI. Here, the stored HTML of a rendered document (`Documents.PreviewAsync`):
 
 ```csharp
 using Microsoft.AspNetCore.Http.HttpResults;
 
-app.MapGet("/render/preview/{templateId}", async Task<Results<ContentHttpResult, NotFound>> (
-    string templateId,
+app.MapGet("/documents/{id}/preview", async Task<Results<ContentHttpResult, NotFound>> (
+    string id,
     PoliPageClient client,
     CancellationToken cancellationToken) =>
 {
     try
     {
-        var preview = await client.Render.PreviewAsync(
-            new ProjectModeInput
-            {
-                Project = "templates",
-                Template = templateId,
-                Version = "1.0.0",
-            },
-            cancellationToken: cancellationToken);
+        var preview = await client.Documents.PreviewAsync(id, cancellationToken: cancellationToken);
 
         return TypedResults.Content(preview.Html, "text/html; charset=utf-8");
     }
@@ -133,21 +126,21 @@ render.RequireRateLimiting("render");
 
 When a caller exceeds the limit, ASP.NET Core returns 429 before the SDK is ever invoked — the SDK's own retry budget never burns on locally-rejected traffic.
 
-## Output caching for previews
+## Output caching for document previews
 
-Preview HTML is deterministic for a given `(project, template, version, data)` tuple. If your `data` is small and shareable across users, output caching saves repeat renders:
+A stored document's preview HTML does not change for a given document id. If the documents are shareable across the users who can reach the endpoint, output caching saves repeat API calls:
 
 ```csharp
 builder.Services.AddOutputCache(options =>
 {
     options.AddPolicy("preview-15m", builder => builder
         .Expire(TimeSpan.FromMinutes(15))
-        .SetVaryByQuery("v", "data"));
+        .SetVaryByRouteValue("id"));
 });
 
 app.UseOutputCache();
 
-render.MapGet("/preview/{templateId}", /* … */)
+app.MapGet("/documents/{id}/preview", /* … */)
     .CacheOutput("preview-15m");
 ```
 

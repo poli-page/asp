@@ -48,7 +48,7 @@ Add your API key to `appsettings.json` (or environment variables — see [Config
 ```json
 {
   "PoliPage": {
-    "ApiKey": "pp_test_your_key_here"
+    "ApiKey": "pp_sandbox_your_key_here"
   }
 }
 ```
@@ -93,11 +93,10 @@ app.MapGet("/invoices/{id}.pdf", async (
     CancellationToken cancellationToken) =>
 {
     var pdf = await poliPage.Render.PdfAsync(
-        new ProjectModeInput
+        new RenderInput
         {
             Project = "invoices",
             Template = "default",
-            Version = "1.0.0",
             Data = new { InvoiceId = id },
         },
         cancellationToken: cancellationToken);
@@ -121,11 +120,10 @@ public class InvoicesController(
     public async Task<IActionResult> Show(string id, CancellationToken cancellationToken)
     {
         var pdf = await poliPage.Render.PdfAsync(
-            new ProjectModeInput
+            new RenderInput
             {
                 Project = "invoices",
                 Template = "default",
-                Version = "1.0.0",
                 Data = new { InvoiceId = id },
             },
             cancellationToken: cancellationToken);
@@ -147,7 +145,7 @@ app.MapPoliPageSmokeTest().RequireAuthorization("Operator");
 // curl -sS https://your-app.example.com/poli-page/smoke -o welcome.pdf
 ```
 
-Every Poli Page org comes pre-provisioned with `getting-started/welcome`, so the endpoint works as soon as the API key is valid. The package emits a one-time `Warning`-level log entry at startup if the endpoint is registered without `.RequireAuthorization(...)` **or** `.AllowAnonymous()` — every call burns one render against your quota, so production hosts should gate it.
+Every Poli Page organization gets a `getting-started` project with a `welcome` template, published into its `sandbox` environment, so the endpoint works with a sandbox key as soon as the key is valid. With a key of another environment, publish `getting-started` there first or the API answers `404 PROJECT_NOT_IN_ENVIRONMENT`. The package emits a one-time `Warning`-level log entry at startup if the endpoint is registered without `.RequireAuthorization(...)` **or** `.AllowAnonymous()` — every call burns one render against your quota, so production hosts should gate it.
 
 ## Configuration
 
@@ -157,7 +155,7 @@ Every Poli Page org comes pre-provisioned with `getting-started/welcome`, so the
 // 1. Pure code — no IConfiguration source.
 builder.Services.AddPoliPageAspNetCore(opts =>
 {
-    opts.ApiKey = "pp_test_x";
+    opts.ApiKey = "pp_sandbox_…";
     opts.MaxRetries = 3;
 });
 
@@ -177,7 +175,7 @@ builder.Services.AddPoliPageAspNetCore(
 
 | Option | Default | Source | Description |
 |---|---|---|---|
-| `PoliPage:ApiKey` | — (required) | `PoliPageClientOptions` | Must start with `pp_test_` or `pp_live_`. |
+| `PoliPage:ApiKey` | — (required) | `PoliPageClientOptions` | `pp_{env}_{32 lowercase hex}`; the key selects the environment (see [API keys and environments](#api-keys-and-environments)). Missing or empty fails startup. |
 | `PoliPage:BaseUrl` | `https://api.poli.page` | `PoliPageClientOptions` | API endpoint. Override for staging or self-hosted. |
 | `PoliPage:RequestTimeout` | `00:01:00` | `PoliPageClientOptions` | Per-request timeout (`TimeSpan` format: `"00:00:30"`). |
 | `PoliPage:MaxRetries` | `2` | `PoliPageClientOptions` | Automatic retries on 429 / 5xx. Must be `≥ 0`. |
@@ -189,11 +187,25 @@ builder.Services.AddPoliPageAspNetCore(
 
 Validation runs at host startup via `ValidateOnStart` — a misconfigured app fails on `dotnet run`, not on the first SDK call.
 
+### API keys and environments
+
+An API key is `pp_{env}_{32 lowercase hex}`, where `{env}` names the one environment the key belongs to. Every organization starts with a `sandbox` and a `live` environment; Pro and above can create more (for example `staging`). There are no template versions: each environment holds one published copy of a project, and the key picks the environment.
+
+| Environment                           | Key            | Watermark | Counted |
+| ------------------------------------- | -------------- | --------- | ------- |
+| `sandbox` (every org)                 | `pp_sandbox_…` | yes       | no      |
+| `live` (every org, deletable on Pro+) | `pp_live_…`    | no        | yes     |
+| created on Pro+ (e.g. `staging`)      | `pp_staging_…` | no        | yes     |
+
+"Counted" means the render counts toward the organization's monthly PDF quota.
+
+The API is the only authority on keys. At startup the integration only checks that `ApiKey` is present and not empty (startup fails otherwise). A key that does not match `pp_{env}_{32 lowercase hex}` (environment names: lowercase letters, digits and single inner hyphens, starting with a letter, 1 to 20 characters) logs one warning (`EventId` 3001 or 3002), and the app starts anyway; the API then answers `401 INVALID_API_KEY` (or `401 MISSING_API_KEY` for a value without `pp_`). The warning shows at most the `pp_{env}_` part, and only when the environment name is well formed; it never shows the secret.
+
 ```json
 // appsettings.json
 {
   "PoliPage": {
-    "ApiKey": "pp_test_x",
+    "ApiKey": "pp_sandbox_…",
     "RequestTimeout": "00:00:30",
     "MaxRetries": 3,
     "AspNetCore": {
@@ -206,7 +218,7 @@ Validation runs at host startup via `ValidateOnStart` — a misconfigured app fa
 Environment variables override `appsettings.json` via the colon-separated path convention. On Linux/macOS, replace `:` with `__`:
 
 ```
-PoliPage__ApiKey=pp_live_x
+PoliPage__ApiKey=pp_live_…
 PoliPage__BaseUrl=https://api-eu.poli.page
 ```
 
@@ -228,7 +240,6 @@ All of these flow through `IConfiguration` automatically — `AddPoliPageAspNetC
 
 - Blue/green deploy: standard. The new pod boots with the new key; traffic shifts; the old pod drains.
 - `kubectl rollout restart deployment/your-api`: forces a pod restart, picking up the new key.
-- Per-request override: pass a fresh `ApiKey` in `RequestOptions` on the SDK call site. Works without a restart but only for code paths you control.
 
 A live-reload story (subscribe to `IOptionsMonitor.OnChange`, swap the inner client behind a thread-safe accessor) is deferred to v0.2 — it requires SDK cooperation that doesn't exist yet.
 
@@ -260,23 +271,22 @@ Full reference: <https://poli-page.github.io/asp/>.
 
 ## Errors
 
-The SDK throws eight typed exceptions, all derived from `PoliPage.PoliPageException`. With the default wiring (`AddPoliPageAspNetCore(...)` + `app.UseExceptionHandler()`), they map to `ProblemDetails` JSON via `IProblemDetailsService` — meaning any `services.AddProblemDetails(opts => opts.CustomizeProblemDetails = ...)` callback you register also runs on our responses, so the JSON shape stays consistent across **all** error sources in your app (validation 422, framework 404, `PoliPageException`, …):
+The SDK throws seven typed exceptions, all derived from `PoliPage.PoliPageException`. With the default wiring (`AddPoliPageAspNetCore(...)` + `app.UseExceptionHandler()`), they map to `ProblemDetails` JSON via `IProblemDetailsService` — meaning any `services.AddProblemDetails(opts => opts.CustomizeProblemDetails = ...)` callback you register also runs on our responses, so the JSON shape stays consistent across **all** error sources in your app (validation 422, framework 404, `PoliPageException`, …):
 
-| Exception | Status | `code` |
-|---|---|---|
-| `PoliPageAuthException` | 401 | `authentication_failed` |
-| `PoliPagePaymentRequiredException` | 402 | `payment_required` |
-| `PoliPageNotFoundException` | 404 | `not_found` |
-| `PoliPageGoneException` | 410 | `gone` |
-| `PoliPageValidationException` | 400 or 422 | `validation_failed` |
-| `PoliPageRateLimitException` | 429 | `rate_limited` |
-| `PoliPageNetworkException` | 502 | `upstream_unavailable` |
-| `PoliPageDownloadException` | 502 | `download_failed` |
-| `PoliPageException` (fallback) | 500 | `poli_page_error` |
+| Exception | Status | `type` fragment | Typical API `code` |
+|---|---|---|---|
+| `PoliPageAuthException` | 401 or 403 (the API's status) | `authentication_failed` | `INVALID_API_KEY`, `MISSING_API_KEY`, `FORBIDDEN`, `ORGANIZATION_PAYMENT_GRACE`, `ENVIRONMENT_PROTECTED` |
+| `PoliPageNotFoundException` | 404 | `not_found` | `PROJECT_NOT_FOUND`, `PROJECT_NOT_IN_ENVIRONMENT`, `TEMPLATE_NOT_FOUND`, `DOCUMENT_NOT_FOUND` |
+| `PoliPageGoneException` | 410 | `gone` | `DOCUMENT_GONE` |
+| `PoliPageValidationException` | 400 or 422 | `validation_failed` | `VALIDATION_ERROR` |
+| `PoliPageRateLimitException` | 429 | `rate_limited` | `RATE_LIMIT_EXCEEDED`, `QUOTA_EXCEEDED`, `OVERAGE_CAP_EXCEEDED` |
+| `PoliPageNetworkException` | 503 | `upstream_unavailable` | `network_error` |
+| `PoliPageDownloadException` | 502 | `download_failed` | `DOWNLOAD_FAILED` |
+| `PoliPageException` (fallback) | the API's status, else 500 (504 for `timeout`) | `poli_page_error` | any other code |
 
 ProblemDetails extensions surface useful context on top of the standard fields:
 
-- `code` — the public problem code (matches the table above)
+- `code` — the API's error code, verbatim (for example `TEMPLATE_NOT_FOUND`); the `type` URI ends with the fragment from the table above
 - `poliPageRequestId` — the SDK's `Code`-bearing `RequestId`, when the API provided one
 - `retryAfterSeconds` — for `PoliPageRateLimitException` only, when the API supplied a `Retry-After` header
 - `traceId` — the current `Activity.Id` (or `HttpContext.TraceIdentifier` when no Activity is running)
@@ -306,14 +316,14 @@ You can also let the handler do all the mapping — the explicit `try`/`catch` i
 
 ## Example app
 
-A runnable Minimal API + MVC app at [`example-app/`](example-app/) demonstrates every public SDK method. `GET /` redirects to an interactive single-page dashboard at `/demo.html` that exercises render (`/render/pdf`, `/render/stream`, `/render/preview`), document lifecycle (`POST /documents`, `GET/DELETE /documents/{id}`, `/preview`, `/thumbnails`), and the typed-exception path (`/errors/bad-version`).
+A runnable Minimal API + MVC app at [`example-app/`](example-app/) demonstrates every public SDK method. `GET /` redirects to an interactive single-page dashboard at `/demo.html` that exercises render (`/render/pdf`, `/render/stream`), document lifecycle (`POST /documents`, `GET/DELETE /documents/{id}`, `/preview`, `/thumbnails`), and the typed-exception path (`/errors/not-found`: a real render of the `does-not-exist` template that answers `404` ProblemDetails with code `TEMPLATE_NOT_FOUND`).
 
 ```bash
 cd example-app
-POLI_PAGE_API_KEY=pp_test_… dotnet run
+POLI_PAGE_API_KEY=pp_sandbox_… dotnet run
 ```
 
-Or drop `POLI_PAGE_*` lines into the workspace root `.env` (`../.env`) — the example app loads them at startup; real shell exports always win.
+Or drop `POLI_PAGE_API_KEY` (and optionally `POLI_PAGE_BASE_URL`) into a `.env` file above the app — the example app loads the nearest one at startup; real shell exports always win.
 
 ## Going further
 

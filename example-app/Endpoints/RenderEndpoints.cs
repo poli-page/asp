@@ -10,7 +10,6 @@ internal static class RenderEndpoints
 
         endpoints.MapGet("/render/pdf", RenderPdfAsync);
         endpoints.MapGet("/render/stream", RenderStreamAsync);
-        endpoints.MapGet("/render/preview", RenderPreviewAsync);
         endpoints.MapPost("/render/file", RenderFileAsync);
 
         return endpoints;
@@ -28,13 +27,6 @@ internal static class RenderEndpoints
         var client = httpContext.RequestServices.GetRequiredService<PoliPageClient>();
         var stream = await client.Render.PdfStreamAsync(WelcomeInput(), cancellationToken: httpContext.RequestAborted);
         await PoliPageResults.PdfStream(stream, "welcome-stream.pdf", inline: true).ExecuteAsync(httpContext);
-    }
-
-    private static async Task RenderPreviewAsync(HttpContext httpContext)
-    {
-        var client = httpContext.RequestServices.GetRequiredService<PoliPageClient>();
-        var preview = await client.Render.PreviewAsync(WelcomeInput(), cancellationToken: httpContext.RequestAborted);
-        await PoliPageResults.Preview(preview.Html).ExecuteAsync(httpContext);
     }
 
     private static async Task<IResult> RenderFileAsync(
@@ -57,11 +49,10 @@ internal static class RenderEndpoints
 
     private sealed record RenderFileResponse(string Path, long SizeBytes);
 
-    private static ProjectModeInput WelcomeInput() => new()
+    private static RenderInput WelcomeInput() => new()
     {
         Project = "getting-started",
         Template = "welcome",
-        Version = "1.0.0",
         Data = new { name = "PoliPage.AspNetCore" },
     };
 }

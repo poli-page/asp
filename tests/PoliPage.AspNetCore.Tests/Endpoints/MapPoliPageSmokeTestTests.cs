@@ -24,6 +24,21 @@ public class MapPoliPageSmokeTestTests
     }
 
     [Fact]
+    public async Task Smoke_endpoint_renders_getting_started_welcome_without_a_version()
+    {
+        await using var host = await PoliPageTestHost.StartAsync(app =>
+            app.MapPoliPageSmokeTest().AllowAnonymous());
+
+        var response = await host.Client.GetAsync("/poli-page/smoke");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var body = JsonDocument.Parse(host.Stub.LastRenderBody!);
+        body.RootElement.GetProperty("project").GetString().Should().Be("getting-started");
+        body.RootElement.GetProperty("template").GetString().Should().Be("welcome");
+        body.RootElement.TryGetProperty("version", out _).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Smoke_endpoint_maps_PoliPageException_via_exception_handler()
     {
         await using var host = await PoliPageTestHost.StartAsync(app =>
