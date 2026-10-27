@@ -163,12 +163,14 @@ builder.Services.AddPoliPageAspNetCore(opts =>
 // 2. Bind from IConfiguration (the common case).
 builder.Services.AddPoliPageAspNetCore(builder.Configuration.GetSection("PoliPage"));
 
-// 3. Both — IConfiguration binding, then a code override.
+// 3. Both — IConfiguration binding, then a code override. Runs before builder.Build(), so
+//    it cannot use `app`; delegates such as OnRetry cannot come from appsettings.json.
 builder.Services.AddPoliPageAspNetCore(
     builder.Configuration.GetSection("PoliPage"),
     configureClient: opts =>
     {
-        opts.OnRetry = e => app.Logger.LogWarning("PoliPage retry {Attempt}", e.Attempt);
+        opts.MaxRetries = 5; // wins over PoliPage:MaxRetries
+        opts.OnRetry = e => Console.WriteLine($"PoliPage retry {e.Attempt}");
     });
 ```
 
