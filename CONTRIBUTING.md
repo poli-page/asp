@@ -8,7 +8,7 @@ Thanks for your interest in improving this package. This guide covers setup, tes
 dotnet restore
 ```
 
-Set `POLI_PAGE_API_KEY` to a `pp_sandbox_…` key (and optionally `POLI_PAGE_BASE_URL`) before running integration tests. They skip unless the key starts with `pp_sandbox_`, so they never spend quota in a counted environment.
+Set `POLI_PAGE_API_KEY` to a `pp_sandbox_…` key (and optionally `POLI_PAGE_BASE_URL`) before running integration tests. The runner reports them as skipped unless the key is a well-formed sandbox key (`pp_sandbox_` plus 32 lowercase hex), so they never spend quota in a counted environment.
 
 The SDK is not yet on NuGet; the repo's `nuget.config` points at `../sdk-csharp/artifacts/package/release/`. Build the SDK once before working here:
 
@@ -38,7 +38,7 @@ Integration tests (real-API round-trip):
 dotnet test --filter "Category=Integration"
 ```
 
-Integration tests are skipped unless `POLI_PAGE_API_KEY` starts with `pp_sandbox_`.
+Integration tests are reported as skipped unless `POLI_PAGE_API_KEY` is a well-formed sandbox key (`pp_sandbox_` plus 32 lowercase hex).
 
 ## Lint, build, pack
 

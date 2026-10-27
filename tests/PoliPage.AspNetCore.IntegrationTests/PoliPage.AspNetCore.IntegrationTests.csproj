@@ -15,6 +15,8 @@
 
   <ItemGroup>
     <Compile Include="../PoliPage.AspNetCore.Tests/Fixtures/TestKeys.cs" Link="Fixtures/TestKeys.cs" />
+    <!-- The library's own key grammar, so the sandbox-key check cannot drift from it. -->
+    <Compile Include="../../src/PoliPage.AspNetCore/Internal/ApiKeyFormat.cs" Link="Internal/ApiKeyFormat.cs" />
   </ItemGroup>
 
   <ItemGroup>

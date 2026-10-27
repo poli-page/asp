@@ -268,17 +268,26 @@ public async Task Customize_callback_applies_to_PoliPage_problem_details()
 
 ## Integration tests against the real API
 
-Tag with `[Trait("Category", "Integration")]` so `dotnet test --filter "Category!=Integration"` skips them in the default CI run, and silent-skip unless the API key is a sandbox key: an unset secret produces a green-passing test instead of a flaky failure, and a `live` (or other counted) key never spends quota or creates real documents from a test run:
+Tag with `[Trait("Category", "Integration")]` so `dotnet test --filter "Category!=Integration"` skips them in the default CI run, and skip them unless the API key is a well-formed sandbox key: an unset secret shows up as a skipped test (not a flaky failure, and not a green pass that never sent a request), and a `live` (or other counted) key never spends quota or creates real documents from a test run. xUnit 2 has no runtime skip (`Assert.Skip` is xUnit 3), so set `Skip` in a `FactAttribute` subclass:
 
 ```csharp
-[Fact]
+using System.Text.RegularExpressions;
+
+public sealed class SandboxFactAttribute : FactAttribute
+{
+    public SandboxFactAttribute()
+    {
+        // \z, not $: .NET's $ also matches before a final "\n".
+        if (Environment.GetEnvironmentVariable("POLI_PAGE_API_KEY") is not { } key
+            || !Regex.IsMatch(key, @"^pp_sandbox_[0-9a-f]{32}\z"))
+            Skip = "POLI_PAGE_API_KEY is not a sandbox key.";
+    }
+}
+
+[SandboxFact]
 [Trait("Category", "Integration")]
 public async Task Smoke_endpoint_round_trips()
 {
-    if (Environment.GetEnvironmentVariable("POLI_PAGE_API_KEY") is not { } key
-        || !key.StartsWith("pp_sandbox_", StringComparison.Ordinal))
-        return;
-
     using var factory = new WebApplicationFactory<Program>();
     using var client = factory.CreateClient();
 

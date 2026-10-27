@@ -4,9 +4,8 @@ namespace PoliPage.AspNetCore.IntegrationTests;
 
 // Round-trips the example-app against the live API. Tagged Category=Integration so
 // CI / dotnet test runs that filter on "Category!=Integration" skip them by default.
-// Each test also self-skips unless POLI_PAGE_API_KEY is a sandbox key: sandbox renders are
-// watermarked and not counted, while any other environment (live, staging, …) counts
-// toward the organization's PDF quota.
+// [SandboxFact] also reports each test as skipped unless POLI_PAGE_API_KEY is a well-formed
+// sandbox key.
 [Trait("Category", "Integration")]
 public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<Program>>
 {
@@ -14,12 +13,9 @@ public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<
 
     public RenderAgainstDevelopApiTests(WebApplicationFactory<Program> factory) => _factory = factory;
 
-    [Fact]
+    [SandboxFact]
     public async Task Smoke_endpoint_round_trips_against_develop()
     {
-        if (!HasSandboxKey())
-            return;
-
         using var client = _factory.CreateClient();
         var response = await client.GetAsync("/poli-page/smoke");
 
@@ -31,12 +27,9 @@ public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<
         bytes.Length.Should().BeGreaterThan(1024);
     }
 
-    [Fact]
+    [SandboxFact]
     public async Task Render_pdf_endpoint_round_trips_against_develop()
     {
-        if (!HasSandboxKey())
-            return;
-
         using var client = _factory.CreateClient();
         var response = await client.GetAsync("/render/pdf");
 
@@ -49,12 +42,9 @@ public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<
         bytes.Length.Should().BeGreaterThan(1024);
     }
 
-    [Fact]
+    [SandboxFact]
     public async Task Documents_create_round_trips_against_develop()
     {
-        if (!HasSandboxKey())
-            return;
-
         using var client = _factory.CreateClient();
         var createResponse = await client.PostAsync("/documents", content: null);
 
@@ -73,12 +63,9 @@ public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<
         deleteResponse.StatusCode.Should().BeOneOf(HttpStatusCode.NoContent, HttpStatusCode.OK);
     }
 
-    [Fact]
+    [SandboxFact]
     public async Task Not_found_demo_answers_404_template_not_found_against_develop()
     {
-        if (!HasSandboxKey())
-            return;
-
         using var client = _factory.CreateClient();
         var response = await client.GetAsync("/errors/not-found");
 
@@ -94,8 +81,4 @@ public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<
         if (problem.RootElement.TryGetProperty("poliPageRequestId", out var requestId))
             requestId.GetString().Should().NotBeNullOrWhiteSpace();
     }
-
-    private static bool HasSandboxKey() =>
-        Environment.GetEnvironmentVariable("POLI_PAGE_API_KEY") is { } key
-        && key.StartsWith("pp_sandbox_", StringComparison.Ordinal);
 }

@@ -267,7 +267,7 @@ The `Instance` field in our ProblemDetails responses uses `Request.Path` + `Quer
 | Symbol | Purpose |
 |---|---|
 | `PoliPage.PoliPageClient` | SDK client singleton. Inject by type. Exposes `Render` and `Documents`. |
-| `PoliPage.AspNetCore.PoliPageResults` | Static factory for Minimal API `IResult` values: `Pdf`, `PdfStream`, `Preview`, `DocumentRedirect`. |
+| `PoliPage.AspNetCore.Results.PoliPageResults` | Static factory for Minimal API `IResult` values: `Pdf`, `PdfStream`, `Preview`, `DocumentRedirect`. |
 | `PoliPage.AspNetCore.PoliPageResponseFactory` | DI-resolvable factory for MVC `IActionResult` values. Same four methods. |
 | `PoliPage.AspNetCore.ApplicationBuilderExtensions.UsePoliPageExceptionHandler` | Fallback middleware mapping `PoliPageException` to ProblemDetails JSON. Use only when **not** calling `app.UseExceptionHandler()`. |
 | `PoliPage.AspNetCore.EndpointRouteBuilderExtensions.MapPoliPageSmokeTest` | Registers a `GET /poli-page/smoke` endpoint that renders `getting-started/welcome`. |

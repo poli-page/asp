@@ -8,7 +8,7 @@ Returning a PDF from an ASP.NET Core endpoint correctly means setting four heade
 
 ## Minimal API — `PoliPageResults`
 
-`PoliPage.AspNetCore.PoliPageResults` is a static class with four factories. Each returns an `IResult` you hand back from your endpoint delegate.
+`PoliPage.AspNetCore.Results.PoliPageResults` is a static class with four factories. Each returns an `IResult` you hand back from your endpoint delegate.
 
 ```csharp
 using PoliPage;
