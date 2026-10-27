@@ -284,22 +284,34 @@ public sealed class SandboxFactAttribute : FactAttribute
             Skip = "POLI_PAGE_API_KEY is not a sandbox key.";
     }
 }
+```
 
-[SandboxFact]
+Then use it in place of `[Fact]`:
+
+```csharp
+using System.Net;
+using FluentAssertions;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Xunit;
+
 [Trait("Category", "Integration")]
-public async Task Smoke_endpoint_round_trips()
+public class SmokeEndpointTests
 {
-    using var factory = new WebApplicationFactory<Program>();
-    using var client = factory.CreateClient();
+    [SandboxFact]
+    public async Task Smoke_endpoint_round_trips()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
 
-    var response = await client.GetAsync("/poli-page/smoke");
+        var response = await client.GetAsync("/poli-page/smoke");
 
-    response.StatusCode.Should().Be(HttpStatusCode.OK);
-    response.Content.Headers.ContentType?.MediaType.Should().Be("application/pdf");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/pdf");
 
-    var bytes = await response.Content.ReadAsByteArrayAsync();
-    bytes.Should().StartWith("%PDF-"u8.ToArray());
-    bytes.Length.Should().BeGreaterThan(1024);
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        bytes.Should().StartWith("%PDF-"u8.ToArray());
+        bytes.Length.Should().BeGreaterThan(1024);
+    }
 }
 ```
 
