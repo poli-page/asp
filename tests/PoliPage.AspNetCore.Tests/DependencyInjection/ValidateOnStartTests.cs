@@ -6,8 +6,11 @@ namespace PoliPage.AspNetCore.Tests.DependencyInjection;
 
 public class ValidateOnStartTests
 {
-    private const int KeyFormatWithPrefixEventId = 3001;
-    private const int KeyFormatEventId = 3002;
+    private const int KeyFormatEventId = 3001;
+
+    private const string KeyFormatWarning =
+        "PoliPage ApiKey does not match the expected format pp_<environment>_<32 lowercase hex characters>. " +
+        "Starting anyway: the Poli Page API decides whether the key is valid.";
 
     [Fact]
     public void ValidateOnStart_throws_on_missing_api_key()
@@ -49,7 +52,7 @@ public class ValidateOnStartTests
         var act = () => StartAndStopAsync(logs, services => services.AddPoliPageAspNetCore(opts => opts.ApiKey = apiKey));
 
         await act.Should().ThrowAsync<OptionsValidationException>().WithMessage("*ApiKey*required*");
-        logs.Entries.Should().NotContain(e => e.EventId.Id == KeyFormatWithPrefixEventId || e.EventId.Id == KeyFormatEventId);
+        logs.Entries.Should().NotContain(e => e.EventId.Id == KeyFormatEventId);
     }
 
     [Fact]
@@ -90,42 +93,46 @@ public class ValidateOnStartTests
         logs.Entries.Should().NotContain(e => e.LogLevel >= LogLevel.Warning);
     }
 
-    // Each row: a malformed key, then the pp_{env}_ prefix the warning may show (null: no key
-    // text at all), then the part of the key that must never reach a log line.
-    public static TheoryData<string, string?, string> MalformedKeys => new()
+    // Each row: a malformed key, then a part of it that must never reach a log line on top of
+    // TestKeys.TextOf (the key, the secret, the pp_{env}_ prefix and the bare {env} segment).
+    public static TheoryData<string, string> MalformedKeys => new()
     {
         // Acceptance rows.
-        { "pp_sandbox_x", "pp_sandbox_", "pp_sandbox_x" },
-        { "pp_Sandbox_" + TestKeys.Secret, null, "Sandbox_" },
-        { "pp_2fa_" + TestKeys.Secret, null, "2fa_" },
-        { "pp_a--b_" + TestKeys.Secret, null, "a--b_" },
-        { $"pp_{TestKeys.Env21}_{TestKeys.Secret}", null, TestKeys.Env21 },
-        { "sk_live_" + TestKeys.Secret, null, "sk_live_" },
-        // 20/21 boundary with a bad secret: 20 characters still shows the prefix, 21 does not.
-        { $"pp_{TestKeys.Env20}_nothex", $"pp_{TestKeys.Env20}_", "nothex" },
-        { $"pp_{TestKeys.Env21}_nothex", null, TestKeys.Env21 },
+        { "pp_sandbox_x", "pp_sandbox_x" },
+        { "pp_Sandbox_" + TestKeys.Secret, "Sandbox_" },
+        { "pp_2fa_" + TestKeys.Secret, "2fa_" },
+        { "pp_a--b_" + TestKeys.Secret, "a--b_" },
+        { $"pp_{TestKeys.Env21}_{TestKeys.Secret}", TestKeys.Env21 },
+        { "sk_live_" + TestKeys.Secret, "sk_live_" },
+        // A valid environment name with a bad secret still shows no part of the key.
+        { "pp_eu-prod_nothex", "nothex" },
+        // A mis-pasted secret fragment can look like a valid environment name.
+        { "pp_abc123_" + TestKeys.Secret[..16], TestKeys.Secret[..16] },
+        // 20/21 boundary with a bad secret.
+        { $"pp_{TestKeys.Env20}_nothex", "nothex" },
+        { $"pp_{TestKeys.Env21}_nothex", "nothex" },
         // .NET's $ matches before a final "\n"; the key check must not.
-        { TestKeys.Sandbox + "\n", "pp_sandbox_", TestKeys.Secret },
-        { TestKeys.Sandbox + "\r\n", "pp_sandbox_", TestKeys.Secret },
+        { TestKeys.Sandbox + "\n", TestKeys.Sandbox },
+        { TestKeys.Sandbox + "\r\n", TestKeys.Sandbox },
         // Hex case and length.
-        { "pp_sandbox_" + TestKeys.Secret.ToUpperInvariant(), "pp_sandbox_", TestKeys.Secret.ToUpperInvariant() },
-        { "pp_sandbox_" + TestKeys.Secret[..31], "pp_sandbox_", TestKeys.Secret[..31] },
-        { "pp_sandbox_" + TestKeys.Secret + "0", "pp_sandbox_", TestKeys.Secret },
-        { "pp_sandbox_" + new string('g', 32), "pp_sandbox_", new string('g', 32) },
-        // Environment names outside the grammar: no key text at all.
-        { "pp_0123456789abcdef0123_rest", null, "0123456789abcdef0123_rest" },
-        { "pp_2fa_", null, "2fa_" },
-        { "pp_Sandbox_", null, "Sandbox_" },
-        { "pp_a--b_", null, "a--b_" },
-        { "pp_-eu_", null, "-eu_" },
-        { "pp_eu-_", null, "eu-_" },
-        { "pp_eu_prod_" + TestKeys.Secret, "pp_eu_", "prod_" + TestKeys.Secret },
+        { "pp_sandbox_" + TestKeys.Secret.ToUpperInvariant(), TestKeys.Secret.ToUpperInvariant() },
+        { "pp_sandbox_" + TestKeys.Secret[..31], TestKeys.Secret[..31] },
+        { "pp_sandbox_" + TestKeys.Secret + "0", TestKeys.Secret },
+        { "pp_sandbox_" + new string('g', 32), new string('g', 32) },
+        // Environment names outside the grammar.
+        { "pp_0123456789abcdef0123_rest", "0123456789abcdef0123_rest" },
+        { "pp_2fa_", "2fa_" },
+        { "pp_Sandbox_", "Sandbox_" },
+        { "pp_a--b_", "a--b_" },
+        { "pp_-eu_", "-eu_" },
+        { "pp_eu-_", "eu-_" },
+        { "pp_eu_prod_" + TestKeys.Secret, "prod_" + TestKeys.Secret },
     };
 
     [Theory]
     [MemberData(nameof(MalformedKeys))]
-    public async Task Malformed_key_starts_with_exactly_one_warning_and_no_secret(
-        string apiKey, string? shownPrefix, string hidden)
+    public async Task Malformed_key_starts_with_exactly_one_warning_that_shows_no_part_of_the_key(
+        string apiKey, string hidden)
     {
         var logs = new InMemoryLoggerProvider();
 
@@ -133,25 +140,17 @@ public class ValidateOnStartTests
 
         var warning = logs.Entries.Should().ContainSingle(e => e.LogLevel >= LogLevel.Warning).Subject;
         warning.LogLevel.Should().Be(LogLevel.Warning);
-        if (shownPrefix is null)
-        {
-            warning.EventId.Id.Should().Be(KeyFormatEventId);
-            warning.Message.Should().Be(
-                "PoliPage ApiKey does not match the key format pp_<environment>_<32 lowercase hex>. " +
-                "Starting anyway: the Poli Page API decides whether the key is valid.");
-        }
-        else
-        {
-            warning.EventId.Id.Should().Be(KeyFormatWithPrefixEventId);
-            warning.Message.Should().Be(
-                $"PoliPage ApiKey ({shownPrefix}…) does not match the key format pp_<environment>_<32 lowercase hex>. " +
-                "Starting anyway: the Poli Page API decides whether the key is valid.");
-        }
+        warning.EventId.Id.Should().Be(KeyFormatEventId);
+        warning.Message.Should().Be(KeyFormatWarning);
 
         foreach (var entry in logs.Entries)
         {
-            entry.Message.Should().NotContain(hidden).And.NotContain(TestKeys.Secret);
-            entry.State.Should().NotContain(hidden).And.NotContain(TestKeys.Secret);
+            foreach (var part in TestKeys.TextOf(apiKey).Append(hidden))
+            {
+                entry.Message.Should().NotContain(part);
+                entry.State.Should().NotContain(part);
+            }
+
             entry.Exception.Should().BeNull();
         }
     }
@@ -186,7 +185,7 @@ public class ValidateOnStartTests
             services.AddPoliPageAspNetCore(opts => opts.ApiKey = "pp_sandbox_x");
         });
 
-        logs.Entries.Should().ContainSingle(e => e.EventId.Id == KeyFormatWithPrefixEventId);
+        logs.Entries.Should().ContainSingle(e => e.EventId.Id == KeyFormatEventId);
     }
 
     [Fact]

@@ -202,7 +202,7 @@ An API key is `pp_{env}_{32 lowercase hex}`, where `{env}` names the one environ
 
 "Counted" means the render counts toward the organization's monthly PDF quota.
 
-The API is the only authority on keys. At startup the integration only checks that `ApiKey` is present and not empty (startup fails otherwise). A key that does not match `pp_{env}_{32 lowercase hex}` (environment names: lowercase letters, digits and single inner hyphens, starting with a letter, 1 to 20 characters) logs one warning (`EventId` 3001 or 3002), and the app starts anyway; the API then answers `401 INVALID_API_KEY` (or `401 MISSING_API_KEY` for a value without `pp_`). The warning shows at most the `pp_{env}_` part, and only when the environment name is well formed; it never shows the secret.
+The API is the only authority on keys. At startup the integration only checks that `ApiKey` is present and not empty (startup fails otherwise). A key that does not match `pp_{env}_{32 lowercase hex}` (environment names: lowercase letters, digits and single inner hyphens, starting with a letter, 1 to 20 characters) logs one warning (`EventId` 3001), and the app starts anyway; the API then answers `401 INVALID_API_KEY` (or `401 MISSING_API_KEY` for a value without `pp_`). The warning names the expected format and shows no part of the key, not even the `pp_{env}_` prefix: a mis-pasted secret fragment can look like a valid environment name.
 
 ```json
 // appsettings.json

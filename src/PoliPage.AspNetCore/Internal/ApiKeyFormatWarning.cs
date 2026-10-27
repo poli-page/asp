@@ -12,14 +12,8 @@ internal sealed class ApiKeyFormatWarning(
 {
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        var apiKey = options.Value.ApiKey;
-        if (!ApiKeyFormat.IsWellFormed(apiKey))
-        {
-            if (ApiKeyFormat.ShownPrefix(apiKey) is { } prefix)
-                LogMessages.ApiKeyFormatUnexpected(logger, prefix);
-            else
-                LogMessages.ApiKeyFormatUnexpectedNoKeyText(logger);
-        }
+        if (!ApiKeyFormat.IsWellFormed(options.Value.ApiKey))
+            LogMessages.ApiKeyFormatUnexpected(logger);
 
         return Task.CompletedTask;
     }

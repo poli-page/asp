@@ -11,7 +11,7 @@ All notable changes to `PoliPage.AspNetCore` are documented here. Format follows
 - `Microsoft.Extensions.Configuration.Binder` 10.0.9 → 10.0.13, matching the `Microsoft.Extensions.*` floor `PoliPage` 0.10.0 brings in (NU1605 otherwise).
 
 ### Added
-- Startup warning when `ApiKey` does not match `pp_{env}_{32 lowercase hex}` (`EventId` 3001, or 3002 when the environment name itself is malformed). The host still starts and the API stays the authority on keys; the warning shows at most the `pp_{env}_` part and never the secret. A missing or empty key still fails startup.
+- Startup warning when `ApiKey` does not match `pp_{env}_{32 lowercase hex}` (`EventId` 3001). The host still starts and the API stays the authority on keys; the warning names the expected format and shows no part of the key, not even the `pp_{env}_` prefix. A missing or empty key still fails startup.
 
 ### Removed
 - Example app: `GET /render/preview` and `GET /invoices/{id}/preview` (the SDK dropped `Render.PreviewAsync`), with their dashboard button and README rows. `GET /documents/{id}/preview` (`Documents.PreviewAsync`) stays.

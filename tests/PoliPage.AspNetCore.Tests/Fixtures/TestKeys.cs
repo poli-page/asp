@@ -15,4 +15,20 @@ internal static class TestKeys
 
     // 21 characters: one past the limit.
     public const string Env21 = Env20 + "x";
+
+    // The text of a key that no log line may carry: the key, the shared secret and, when the key
+    // has them, its pp_{env}_ prefix and its bare {env} segment.
+    public static IReadOnlyList<string> TextOf(string apiKey)
+    {
+        var parts = new List<string> { apiKey.Trim(), Secret };
+        var start = apiKey.IndexOf("pp_", StringComparison.Ordinal);
+        var end = start < 0 ? -1 : apiKey.IndexOf('_', start + 3);
+        if (end > start + 3)
+        {
+            parts.Add(apiKey[start..(end + 1)]);
+            parts.Add(apiKey[(start + 3)..end]);
+        }
+
+        return parts;
+    }
 }
