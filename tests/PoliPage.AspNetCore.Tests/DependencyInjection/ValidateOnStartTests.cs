@@ -91,6 +91,7 @@ public class ValidateOnStartTests
         await StartAndStopAsync(logs, services => services.AddPoliPageAspNetCore(opts => opts.ApiKey = apiKey));
 
         logs.Entries.Should().NotContain(e => e.LogLevel >= LogLevel.Warning);
+        ShouldCarryNoneOf(logs, TestKeys.TextOf(apiKey, TestKeys.MinCheckedEnvLength));
     }
 
     // Each row: a malformed key, then a part of it that must never reach a log line on top of
@@ -143,16 +144,9 @@ public class ValidateOnStartTests
         warning.EventId.Id.Should().Be(KeyFormatEventId);
         warning.Message.Should().Be(KeyFormatWarning);
 
+        ShouldCarryNoneOf(logs, TestKeys.TextOf(apiKey).Append(hidden));
         foreach (var entry in logs.Entries)
-        {
-            foreach (var part in TestKeys.TextOf(apiKey).Append(hidden))
-            {
-                entry.Message.Should().NotContain(part);
-                entry.State.Should().NotContain(part);
-            }
-
             entry.Exception.Should().BeNull();
-        }
     }
 
     [Fact]
@@ -199,6 +193,22 @@ public class ValidateOnStartTests
         await StartAndStopAsync(logs, services => services.AddPoliPageAspNetCore(configuration.GetSection("PoliPage")));
 
         logs.Entries.Should().ContainSingle(e => e.EventId.Id == KeyFormatEventId);
+    }
+
+    // No log entry's formatted message or structured state, and no scope, may carry any part.
+    private static void ShouldCarryNoneOf(InMemoryLoggerProvider logs, IEnumerable<string> parts)
+    {
+        foreach (var part in parts)
+        {
+            foreach (var entry in logs.Entries)
+            {
+                entry.Message.Should().NotContain(part);
+                entry.State.Should().NotContain(part);
+            }
+
+            foreach (var scope in logs.Scopes)
+                scope.Should().NotContain(part);
+        }
     }
 
     internal static async Task StartAndStopAsync(

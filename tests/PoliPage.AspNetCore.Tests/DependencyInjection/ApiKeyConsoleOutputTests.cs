@@ -21,6 +21,29 @@ public class ApiKeyConsoleOutputTests
     [InlineData("sk_live_" + TestKeys.Secret, "sk_live_")]
     public async Task Console_output_never_carries_the_key(string apiKey, string hidden)
     {
+        var output = await ConsoleOutputOfAsync(apiKey);
+
+        output.Should().Contain("does not match the expected format", "the console logger must have flushed the warning");
+        foreach (var part in TestKeys.TextOf(apiKey).Append(hidden))
+            output.Should().NotContain(part);
+    }
+
+    [Theory]
+    [InlineData(TestKeys.Sandbox)]
+    [InlineData(TestKeys.EuProd)]
+    [InlineData("pp_a_" + TestKeys.Secret)]
+    public async Task Console_output_never_carries_a_well_formed_key(string apiKey)
+    {
+        var output = await ConsoleOutputOfAsync(apiKey);
+
+        output.Should().Contain("Hosting stopped", "the console logger must have flushed the host's last line");
+        output.Should().NotContain("does not match the expected format");
+        foreach (var part in TestKeys.TextOf(apiKey, TestKeys.MinCheckedEnvLength))
+            output.Should().NotContain(part);
+    }
+
+    private static async Task<string> ConsoleOutputOfAsync(string apiKey)
+    {
         var originalOut = Console.Out;
         var originalError = Console.Error;
         using var stdout = new StringWriter();
@@ -40,9 +63,6 @@ public class ApiKeyConsoleOutputTests
             Console.SetError(originalError);
         }
 
-        var output = stdout.ToString() + stderr.ToString();
-        output.Should().Contain("does not match the expected format", "the console logger must have flushed the warning");
-        foreach (var part in TestKeys.TextOf(apiKey).Append(hidden))
-            output.Should().NotContain(part);
+        return stdout.ToString() + stderr.ToString();
     }
 }

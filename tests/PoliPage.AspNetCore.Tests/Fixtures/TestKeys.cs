@@ -16,9 +16,14 @@ internal static class TestKeys
     // 21 characters: one past the limit.
     public const string Env21 = Env20 + "x";
 
+    // A bare {env} shorter than this is too common to look for in host output: the "a" of pp_a_ is
+    // in "Hosting starting". Its pp_{env}_ prefix is still looked for.
+    public const int MinCheckedEnvLength = 3;
+
     // The text of a key that no log line may carry: the key, the shared secret and, when the key
-    // has them, its pp_{env}_ prefix and its bare {env} segment.
-    public static IReadOnlyList<string> TextOf(string apiKey)
+    // has them, its pp_{env}_ prefix and its bare {env} segment (left out when shorter than
+    // minEnvLength).
+    public static IReadOnlyList<string> TextOf(string apiKey, int minEnvLength = 1)
     {
         var parts = new List<string> { apiKey.Trim(), Secret };
         var start = apiKey.IndexOf("pp_", StringComparison.Ordinal);
@@ -26,7 +31,8 @@ internal static class TestKeys
         if (end > start + 3)
         {
             parts.Add(apiKey[start..(end + 1)]);
-            parts.Add(apiKey[(start + 3)..end]);
+            if (end - (start + 3) >= minEnvLength)
+                parts.Add(apiKey[(start + 3)..end]);
         }
 
         return parts;
