@@ -11,6 +11,7 @@ ASP.NET Core's Minimal APIs are the default for new projects on `net8.0`+ and th
 ```csharp
 using PoliPage;
 using PoliPage.AspNetCore;
+using PoliPage.AspNetCore.Results;
 
 var render = app.MapGroup("/render")
     .RequireAuthorization("Renderer")
@@ -44,7 +45,11 @@ Every endpoint in the group inherits the `Renderer` policy and the `PoliPage` Op
 Bind the caller's body to your own record and map it onto `RenderInput`, so the endpoint decides which project the caller may render. The API key picks the environment, so there is no version to pass:
 
 ```csharp
-public sealed record RenderRequest(string Template, JsonElement? Data);
+using System.Text.Json;
+using Microsoft.AspNetCore.Mvc;
+using PoliPage;
+using PoliPage.AspNetCore;
+using PoliPage.AspNetCore.Results;
 
 render.MapPost("/custom", async (
     [FromBody] RenderRequest request,
@@ -56,12 +61,15 @@ render.MapPost("/custom", async (
         {
             Project = "invoices",
             Template = request.Template,
-            Data = request.Data,
+            Data = (object?)request.Data ?? new { }, // Data is required: {} when the caller sends none
         },
         cancellationToken: cancellationToken);
 
     return PoliPageResults.Pdf(pdf, "custom.pdf");
 });
+
+// In Program.cs, type declarations go after the top-level statements.
+public sealed record RenderRequest(string Template, JsonElement? Data);
 ```
 
 ## Returning multiple result types
@@ -109,6 +117,8 @@ The exception-handler's ProblemDetails responses match `application/problem+json
 ## Rate limiting
 
 ```csharp
+using Microsoft.AspNetCore.RateLimiting;
+
 builder.Services.AddRateLimiter(options =>
 {
     options.AddFixedWindowLimiter("render", limiter =>

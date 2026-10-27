@@ -31,7 +31,7 @@ using System.Net;
 using System.Text;
 using PoliPage;
 
-internal sealed class StubPoliPageHttpHandler : DelegatingHandler
+public sealed class StubPoliPageHttpHandler : DelegatingHandler
 {
     public byte[] PdfBytes { get; set; } = "%PDF-1.7\n%stub"u8.ToArray();
     public PoliPageException? NextException { get; private set; }
@@ -130,6 +130,15 @@ This package's own internal tests use the same shape — see [`tests/PoliPage.As
 ## A first test
 
 ```csharp
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using FluentAssertions;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using PoliPage;
+using Xunit;
+
 public class InvoiceEndpointTests : IClassFixture<PoliPageWebApplicationFactory>
 {
     private readonly PoliPageWebApplicationFactory _factory;
@@ -188,6 +197,14 @@ The actual SDK exception classes the handler maps are: `PoliPageAuthException` (
 Two distinct code paths must each be exercised. The primary path (`IExceptionHandler` + `app.UseExceptionHandler()`) is what 99% of hosts run; the fallback (`app.UsePoliPageExceptionHandler()` middleware) is what hosts without `UseExceptionHandler()` get. The integration's option flags toggle between them:
 
 ```csharp
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
+using PoliPage;
+
 // Primary path: use the factory above as-is — the default
 // RegisterExceptionHandler == true wires the IExceptionHandler.
 

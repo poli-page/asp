@@ -11,6 +11,7 @@
 ```csharp
 using PoliPage;
 using PoliPage.AspNetCore;
+using PoliPage.AspNetCore.Results;
 
 app.MapGet("/statements/{accountId}.pdf", async (
     string accountId,

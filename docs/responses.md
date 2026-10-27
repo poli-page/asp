@@ -13,6 +13,7 @@ Returning a PDF from an ASP.NET Core endpoint correctly means setting four heade
 ```csharp
 using PoliPage;
 using PoliPage.AspNetCore;
+using PoliPage.AspNetCore.Results;
 
 app.MapGet("/invoices/{id}.pdf", async (
     string id,

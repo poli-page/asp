@@ -89,7 +89,10 @@ public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<
         problem.RootElement.GetProperty("code").GetString().Should().Be("TEMPLATE_NOT_FOUND");
         problem.RootElement.GetProperty("status").GetInt32().Should().Be(404);
         problem.RootElement.GetProperty("detail").GetString().Should().NotBeNullOrWhiteSpace();
-        problem.RootElement.GetProperty("poliPageRequestId").GetString().Should().NotBeNullOrWhiteSpace();
+        // The SDK contract types the request id as optional (PoliPageErrorPayload.RequestId is
+        // "the server-assigned request identifier, or null"), and the factory omits the field then.
+        if (problem.RootElement.TryGetProperty("poliPageRequestId", out var requestId))
+            requestId.GetString().Should().NotBeNullOrWhiteSpace();
     }
 
     private static bool HasSandboxKey() =>

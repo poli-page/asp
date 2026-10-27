@@ -86,6 +86,7 @@ app.Run();
 ```csharp
 using PoliPage;
 using PoliPage.AspNetCore;
+using PoliPage.AspNetCore.Results;
 
 app.MapGet("/invoices/{id}.pdf", async (
     string id,
@@ -248,6 +249,8 @@ A live-reload story (subscribe to `IOptionsMonitor.OnChange`, swap the inner cli
 If your app sits behind nginx, Envoy, an Azure Application Gateway, or an AWS ALB, register the standard ASP.NET Core forwarded-headers middleware **before** `app.UseExceptionHandler()`:
 
 ```csharp
+using Microsoft.AspNetCore.HttpOverrides;
+
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost,
