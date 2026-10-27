@@ -3,9 +3,7 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
-    <!-- 0.10.0 is the SDK's environments release (RenderInput, no template versions). Until it is on
-         nuget.org (which has only 0.9.x, the old API), it resolves only from the local source
-         ../sdk-csharp/artifacts/package/release that CI fills with `dotnet pack` of sdk-csharp main. -->
+    <!-- 0.10.0 is the SDK's environments release (RenderInput, no template versions), from nuget.org. -->
     <PackageVersion Include="PoliPage" Version="0.10.0" />
 
     <!-- Analyzers (match sdk-csharp set) -->

@@ -9,6 +9,7 @@ All notable changes to `PoliPage.AspNetCore` are documented here. Format follows
 - `MapPoliPageSmokeTest` renders `getting-started/welcome` without a version. The project is published into every organization's `sandbox` environment, so the smoke endpoint works out of the box with a sandbox key.
 - ProblemDetails mapping follows the SDK 0.10.0 exception types: `PoliPagePaymentRequiredException` (402) is gone (payment grace is `403 ORGANIZATION_PAYMENT_GRACE`, a `PoliPageAuthException`); `PoliPageGoneException` (410) now carries `DOCUMENT_GONE`.
 - `Microsoft.Extensions.Configuration.Binder` 10.0.9 → 10.0.13, matching the `Microsoft.Extensions.*` floor `PoliPage` 0.10.0 brings in (NU1605 otherwise).
+- Build: `PoliPage` resolves from nuget.org. The `poli-page-local` source in `nuget.config` and the CI step that packed sdk-csharp `main` into it are removed.
 
 ### Added
 - Startup warning when `ApiKey` does not match `pp_{env}_{32 lowercase hex}` (`EventId` 3001). The host still starts and the API stays the authority on keys; the warning names the expected format and shows no part of the key, not even the `pp_{env}_` prefix. A missing or empty key still fails startup.

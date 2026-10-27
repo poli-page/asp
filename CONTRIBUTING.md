@@ -10,14 +10,6 @@ dotnet restore
 
 Set `POLI_PAGE_API_KEY` to a `pp_sandbox_…` key (and optionally `POLI_PAGE_BASE_URL`) before running integration tests. The runner reports them as skipped unless the key is a well-formed sandbox key (`pp_sandbox_` plus 32 lowercase hex), so they never spend quota in a counted environment.
 
-The SDK is not yet on NuGet; the repo's `nuget.config` points at `../sdk-csharp/artifacts/package/release/`. Build the SDK once before working here:
-
-```bash
-dotnet pack ../sdk-csharp/PoliPage.sln -c Release -o ../sdk-csharp/artifacts/package/release
-```
-
-See [CLAUDE.md §9](CLAUDE.md) for the workaround details.
-
 ## Tests
 
 Unit + WebApplicationFactory tests:
