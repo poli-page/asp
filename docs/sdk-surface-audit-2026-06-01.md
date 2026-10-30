@@ -2,7 +2,7 @@
 
 > Audit performed as Task 0 of `docs/plan/2026-06-01-implementation.md`. Confirms (or refutes) the three load-bearing SDK assumptions in that plan before any source code lands. No source code in this PR — output is this report and the plan amendments it triggers.
 >
-> SDK audited: `/Users/mickael/Projects/sdk-csharp/` @ `main` (`d74ec9f` — *fix(api): align endpoint paths with /v1 prefix and adopt the two-step PDF model*).
+> SDK audited: `poli-page/sdk-csharp` @ `main` (`d74ec9f` — *fix(api): align endpoint paths with /v1 prefix and adopt the two-step PDF model*).
 
 ## 0.1 Exception class names — 🟡 Yellow
 
@@ -73,13 +73,13 @@ The plan's option 0.2(1) (SDK PR to unseal `PoliPageClient` + add `virtual`) is 
 - **`PoliPageExceptionHandler` and middleware** are driven by throwing `PoliPageException` instances directly into a `DefaultHttpContext` — no SDK call involved.
 - **OpenAPI metadata** (`IEndpointMetadataProvider.PopulateMetadata`) is exercised against a `TestEndpointRouteBuilder` — no SDK call involved.
 
-For the small subset of end-to-end tests that exercise `WebApplicationFactory<Program>` + a handler that calls the real SDK, inject a stubbed `HttpMessageHandler` via `PoliPageClientOptions.HttpClient` **and** `PoliPageClientOptions.DownloadHttpClient` (both are already public extension points on the SDK options record). A ~20-line `DelegatingHandler` returning canned descriptor JSON + canned PDF bytes is sufficient. This is **not** a WireMock-style SDK retest (which CLAUDE.md §4 explicitly forbids) — we're driving one known happy-path response so the ASP.NET layer above can be exercised, not asserting on the SDK's retry/timeout/error-classification behaviour.
+For the small subset of end-to-end tests that exercise `WebApplicationFactory<Program>` + a handler that calls the real SDK, inject a stubbed `HttpMessageHandler` via `PoliPageClientOptions.HttpClient` **and** `PoliPageClientOptions.DownloadHttpClient` (both are already public extension points on the SDK options record). A ~20-line `DelegatingHandler` returning canned descriptor JSON + canned PDF bytes is sufficient. This is **not** a WireMock-style SDK retest (which the package's testing rules forbid) — we're driving one known happy-path response so the ASP.NET layer above can be exercised, not asserting on the SDK's retry/timeout/error-classification behaviour.
 
 **Plan amendment required (before Task 13):** rename the `FakePoliPageClient` fixture to `StubPoliPageHttpHandler : DelegatingHandler`, place it under `tests/PoliPage.AspNetCore.Tests/Fixtures/`, and document in Task 13's preamble that it returns a fixed descriptor + PDF body for any incoming request. Spec §14 reads "mocked SDK via `FakePoliPageClient` (~95% of the suite)"; in practice the ratio inverts — ~95% of tests don't touch the SDK at all, and ~5% drive it through the handler stub.
 
 ## 0.3 `PoliPageClient.PingAsync` — 🔴 Red
 
-Grepping `/Users/mickael/Projects/sdk-csharp/` for `PingAsync`, `HealthCheck`, `GET /v1/health`, and `/v1/ping` returns zero matches. The SDK exposes no dedicated health probe.
+Grepping `poli-page/sdk-csharp` for `PingAsync`, `HealthCheck`, `GET /v1/health`, and `/v1/ping` returns zero matches. The SDK exposes no dedicated health probe.
 
 Of the three recovery paths the plan lists:
 
@@ -92,7 +92,7 @@ Of the three recovery paths the plan lists:
 **Plan amendments required:**
 
 - Strike Task 14 from the v0.1 task list.
-- Update CLAUDE.md §2 to drop `IHealthChecksBuilder.AddPoliPage(...)` from the v0.1 feature list and add a "does NOT ship in v0.1; deferred to v0.2" line.
+- Update the package's feature list to drop `IHealthChecksBuilder.AddPoliPage(...)` from the v0.1 feature list and add a "does NOT ship in v0.1; deferred to v0.2" line.
 - Drop the `Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions` `<PackageVersion>` and `<PackageReference>` entries from Task 1.3 and Task 2.1 — unused until v0.2.
 
 ## 0.4 SDK CI / build green — ✅ Green
@@ -107,7 +107,7 @@ None of the three load-bearing assumptions held verbatim, but all three are reco
 
 1. **Edit Task 12** (`docs/plan/2026-06-01-implementation.md`) to use the actual exception classes and ctor shape (see 0.1 above). Add ProblemDetails extension wiring for `PoliPageRateLimitException.RetryAfter`. Replace `ex.ErrorCode` with `ex.Code` throughout.
 2. **Edit Task 13** to replace the `FakePoliPageClient` subclass with `StubPoliPageHttpHandler : DelegatingHandler`. Clarify that the ~95% / ~5% mocking ratio inverts — most tests need no SDK fake at all.
-3. **Strike Task 14 and the health-checks package references** from Tasks 1.3 / 2.1. Defer to v0.2. Update CLAUDE.md §2 to match.
-4. **Open SDK issues** in `/Users/mickael/Projects/sdk-csharp/` tracking (a) adding a public `PoliPageClient.PingAsync(CancellationToken)` for health probes, (b) the integration's interest in unsealing `PoliPageClient` *if* test virtualization ever becomes load-bearing.
+3. **Strike Task 14 and the health-checks package references** from Tasks 1.3 / 2.1. Defer to v0.2. Update the package's feature list to match.
+4. **Open SDK issues** in `poli-page/sdk-csharp` tracking (a) adding a public `PoliPageClient.PingAsync(CancellationToken)` for health probes, (b) the integration's interest in unsealing `PoliPageClient` *if* test virtualization ever becomes load-bearing.
 
 With those amendments, Task 1 (solution scaffold + CI workflow) can start.

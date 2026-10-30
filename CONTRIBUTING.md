@@ -32,6 +32,16 @@ dotnet test --filter "Category=Integration"
 
 Integration tests are reported as skipped unless `POLI_PAGE_API_KEY` is a well-formed sandbox key (`pp_sandbox_` plus 32 lowercase hex).
 
+### Contract tests
+
+`tests/PoliPage.AspNetCore.IntegrationTests/Contract` runs the integration cases (`impl.*`) of the [Poli Page API contract](https://github.com/poli-page/api-contract) against the example app (loaded with `WebApplicationFactory<Program>`), its SDK pointed at a local mock server that answers each case's responses. CI runs them on every leg against the pinned contract (the `poli-page/api-contract` action, pinned by commit SHA). Locally, download a `contract.json` and point `POLI_CONTRACT` at it:
+
+```bash
+POLI_CONTRACT=/path/to/contract.json dotnet test tests/PoliPage.AspNetCore.IntegrationTests --filter "Category!=Integration"
+```
+
+Without `POLI_CONTRACT` the contract tests are skipped locally; in CI (`CI` set) they fail. `tests/contract-skip.json` maps the case ids allowed to fail to the reason; a listed case that passes fails the run, so remove it once it is fixed.
+
 ## Lint, build, pack
 
 ```bash
@@ -41,7 +51,7 @@ dotnet build -c Release                 # build
 dotnet pack -c Release                  # produce .nupkg
 ```
 
-CI runs the same commands on `net8.0` + `net10.0` × Ubuntu/Windows + `net10.0` × macOS.
+CI runs the same commands on `net8.0` + `net10.0` × Ubuntu/Windows + `net10.0` × macOS, with the contract tests.
 
 ## Pull requests
 

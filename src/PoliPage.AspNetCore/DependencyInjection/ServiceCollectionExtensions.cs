@@ -106,9 +106,8 @@ public static class ServiceCollectionExtensions
     }
 
     // Skip the SDK registration when the user already called services.AddPoliPage(...). The
-    // symmetric "AddPoliPageAspNetCore then AddPoliPage" case still double-registers — see
-    // CLAUDE.md §10.14. The marker check inside AddAspNetCoreServices below guards the
-    // double-AddPoliPageAspNetCore case.
+    // symmetric "AddPoliPageAspNetCore then AddPoliPage" case still double-registers. The marker
+    // check inside AddAspNetCoreServices below guards the double-AddPoliPageAspNetCore case.
     private static void AddPoliPageOnce(IServiceCollection services, Action<PoliPageClientOptions> configure)
     {
         if (!services.Any(d => d.ServiceType == typeof(PoliPageClient)))
@@ -119,7 +118,7 @@ public static class ServiceCollectionExtensions
         IServiceCollection services,
         Action<PoliPageAspNetCoreOptions>? configure)
     {
-        // Marker-gated short-circuit. See spec §7.5 / CLAUDE.md §10.14.
+        // Marker-gated short-circuit: a second AddPoliPageAspNetCore call registers nothing.
         if (services.Any(d => d.ServiceType == typeof(PoliPageResponseFactory)))
             return services;
 

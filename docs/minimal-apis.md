@@ -107,12 +107,12 @@ The 200 + `application/pdf` content type is contributed automatically by `PoliPa
 render.MapGet("/invoices/{id}.pdf", /* … */)
     .WithName("DownloadInvoice")
     .WithSummary("Download an invoice as a PDF.")
-    .ProducesProblem(StatusCodes.Status404NotFound)
-    .ProducesProblem(StatusCodes.Status429TooManyRequests);
+    .Produces<PoliPageErrorPayload>(StatusCodes.Status404NotFound, "application/json")
+    .Produces<PoliPageErrorPayload>(StatusCodes.Status429TooManyRequests, "application/json");
 //  ^ no .Produces(...) for the 200 — auto-discovered.
 ```
 
-The exception-handler's ProblemDetails responses match `application/problem+json` exactly, so `ProducesProblem(...)` describes them accurately for the spec consumers. The default content type on `ProducesProblem` is `application/problem+json`; ASP.NET Core's `Microsoft.AspNetCore.Http.ProblemDetailsService` writes the same content type by default.
+The error handler answers a `PoliPageException` with the SDK's `PoliPageErrorPayload` (`{ code, message, status, requestId }`) as `application/json`, so `Produces<PoliPageErrorPayload>(...)` describes those answers accurately for the spec consumers.
 
 ## Rate limiting
 

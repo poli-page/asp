@@ -9,13 +9,13 @@
 
 ## About
 
-This package wraps the Poli Page .NET SDK as an ASP.NET Core-native integration: a one-line DI registration that composes the SDK's `AddPoliPage(...)` with response helpers, an `IExceptionHandler` that maps SDK exceptions to RFC 7807 `ProblemDetails`, and a `MapPoliPageSmokeTest` endpoint for post-deploy verification. You configure it through `IConfiguration` (`appsettings.json` + environment variables) and return rendered PDFs the same way you return JSON or a view.
+This package wraps the Poli Page .NET SDK as an ASP.NET Core-native integration: a one-line DI registration that composes the SDK's `AddPoliPage(...)` with response helpers, an error handler (on by default) that answers SDK exceptions with the SDK's `ToPayload()` JSON body and status, and a `MapPoliPageSmokeTest` endpoint for post-deploy verification. You configure it through `IConfiguration` (`appsettings.json` + environment variables) and return rendered PDFs the same way you return JSON or a view.
 
 **When to use this:**
 
 - You want to return a generated PDF from a Minimal API or MVC controller with correct `Content-Type`, `Content-Disposition`, and cache headers.
 - You want the Poli Page client autowired from DI and configured through `appsettings.json`.
-- You want SDK exceptions to surface as ProblemDetails JSON consistent with the rest of your error contract.
+- You want SDK exceptions to reach your clients as the same `{ code, message, status, requestId }` JSON every Poli Page integration answers.
 
 **When not to:**
 
@@ -27,6 +27,7 @@ This package wraps the Poli Page .NET SDK as an ASP.NET Core-native integration:
 
 - .NET 8.0 (LTS) or .NET 10.0 (LTS)
 - ASP.NET Core 8 or 10
+- The `PoliPage` SDK 0.11.0 or later (installed with this package): environment API keys, no template versions
 - A Poli Page API key from [app.poli.page](https://app.poli.page)
 
 ## Install
@@ -39,6 +40,7 @@ Or add the reference directly to your `.csproj`:
 
 ```xml
 <ItemGroup>
+  <!-- Brings in the PoliPage SDK, 0.11.0 or later. -->
   <PackageReference Include="PoliPage.AspNetCore" Version="0.1.0" />
 </ItemGroup>
 ```
@@ -61,12 +63,12 @@ using PoliPage.AspNetCore;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddPoliPageAspNetCore(builder.Configuration.GetSection("PoliPage"));
-// AddPoliPageAspNetCore auto-registers AddProblemDetails() and an IExceptionHandler
-// (PoliPageExceptionHandler) that maps PoliPageException to ProblemDetails JSON.
+// AddPoliPageAspNetCore also turns on the Poli Page error handler: a PoliPageException is
+// answered with its ToPayload() body and status (see "Errors").
 
 var app = builder.Build();
 
-app.UseExceptionHandler();           // runs every registered IExceptionHandler — including ours
+app.UseExceptionHandler();           // for your other exceptions; Poli Page errors don't need it
 app.UseStatusCodePages();            // optional but recommended for 4xx without a body
 
 app.MapPoliPageSmokeTest()
@@ -77,7 +79,7 @@ app.MapControllers();
 app.Run();
 ```
 
-**Do not** call `app.UsePoliPageExceptionHandler()` in addition to `app.UseExceptionHandler()` — the former is a fallback for hosts that don't use the latter; running both makes ordering subtle and breaks `IProblemDetailsService` cooperation. Pick one.
+`AddPoliPageAspNetCore` also calls `services.AddProblemDetails()` (turn it off with `AddProblemDetailsService = false`), which a bare `app.UseExceptionHandler()` needs for the app's other exceptions.
 
 ## Quick start
 
@@ -183,8 +185,8 @@ builder.Services.AddPoliPageAspNetCore(
 | `PoliPage:RequestTimeout` | `00:01:00` | `PoliPageClientOptions` | Per-request timeout (`TimeSpan` format: `"00:00:30"`). |
 | `PoliPage:MaxRetries` | `2` | `PoliPageClientOptions` | Automatic retries on 429 / 5xx. Must be `≥ 0`. |
 | `PoliPage:RetryDelay` | `00:00:00.500` | `PoliPageClientOptions` | Base delay between retries (`TimeSpan`). |
-| `PoliPage:AspNetCore:ProblemDetailsTypeUri` | `https://poli.page/errors` | `PoliPageAspNetCoreOptions` | Root URI for ProblemDetails `type`; the error code is appended as a fragment. |
-| `PoliPage:AspNetCore:IncludeRequestIdInProblemDetails` | `true` | `PoliPageAspNetCoreOptions` | Adds `poliPageRequestId` to ProblemDetails extensions. |
+| `PoliPage:AspNetCore:RegisterExceptionHandler` | `true` | `PoliPageAspNetCoreOptions` | Turns on the error handler that answers a `PoliPageException` with its `ToPayload()` body (see [Errors](#errors)). `false` turns it off. |
+| `PoliPage:AspNetCore:AddProblemDetailsService` | `true` | `PoliPageAspNetCoreOptions` | Calls `services.AddProblemDetails()`, which a bare `app.UseExceptionHandler()` needs. Poli Page errors do not use it. |
 | `PoliPage:AspNetCore:DefaultCacheControl` | `no-store, private` | `PoliPageAspNetCoreOptions` | Default `Cache-Control` for response helpers. `null` omits the header. |
 | `PoliPage:AspNetCore:SetNoSniffHeader` | `true` | `PoliPageAspNetCoreOptions` | Adds `X-Content-Type-Options: nosniff`. |
 
@@ -212,7 +214,7 @@ The API is the only authority on keys. At startup the integration only checks th
     "RequestTimeout": "00:00:30",
     "MaxRetries": 3,
     "AspNetCore": {
-      "ProblemDetailsTypeUri": "https://errors.acme.example/poli-page"
+      "DefaultCacheControl": "no-store, private"
     }
   }
 }
@@ -248,7 +250,7 @@ A live-reload story (subscribe to `IOptionsMonitor.OnChange`, swap the inner cli
 
 ### Behind a reverse proxy
 
-If your app sits behind nginx, Envoy, an Azure Application Gateway, or an AWS ALB, register the standard ASP.NET Core forwarded-headers middleware **before** `app.UseExceptionHandler()`:
+If your app sits behind nginx, Envoy, an Azure Application Gateway, or an AWS ALB, register the standard ASP.NET Core forwarded-headers middleware first, **before** `app.UseExceptionHandler()`:
 
 ```csharp
 using Microsoft.AspNetCore.HttpOverrides;
@@ -260,7 +262,7 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 app.UseExceptionHandler();
 ```
 
-The `Instance` field in our ProblemDetails responses uses `Request.Path` + `QueryString`. With forwarded-headers in the right order, that path is the public-facing URL the client actually hit, not the internal pod-level path.
+With forwarded-headers in the right order, `Request.Scheme` and `Request.Host` (and every absolute URL built from them) are the public-facing ones the client actually hit, not the internal pod-level ones.
 
 ## API at a glance
 
@@ -269,32 +271,57 @@ The `Instance` field in our ProblemDetails responses uses `Request.Path` + `Quer
 | `PoliPage.PoliPageClient` | SDK client singleton. Inject by type. Exposes `Render` and `Documents`. |
 | `PoliPage.AspNetCore.Results.PoliPageResults` | Static factory for Minimal API `IResult` values: `Pdf`, `PdfStream`, `Preview`, `DocumentRedirect`. |
 | `PoliPage.AspNetCore.PoliPageResponseFactory` | DI-resolvable factory for MVC `IActionResult` values. Same four methods. |
-| `PoliPage.AspNetCore.ApplicationBuilderExtensions.UsePoliPageExceptionHandler` | Fallback middleware mapping `PoliPageException` to ProblemDetails JSON. Use only when **not** calling `app.UseExceptionHandler()`. |
+| `PoliPage.AspNetCore.ApplicationBuilderExtensions.UsePoliPageExceptionHandler` | Places the error handler's middleware yourself (for example after `RegisterExceptionHandler = false`). Not needed with the default wiring. |
 | `PoliPage.AspNetCore.EndpointRouteBuilderExtensions.MapPoliPageSmokeTest` | Registers a `GET /poli-page/smoke` endpoint that renders `getting-started/welcome`. |
 
 Full reference: <https://poli-page.github.io/asp/>.
 
 ## Errors
 
-The SDK throws seven typed exceptions, all derived from `PoliPage.PoliPageException`. With the default wiring (`AddPoliPageAspNetCore(...)` + `app.UseExceptionHandler()`), they map to `ProblemDetails` JSON via `IProblemDetailsService` — meaning any `services.AddProblemDetails(opts => opts.CustomizeProblemDetails = ...)` callback you register also runs on our responses, so the JSON shape stays consistent across **all** error sources in your app (validation 422, framework 404, `PoliPageException`, …):
+`AddPoliPageAspNetCore` turns on an error handler by default. Every `PoliPageException` that leaves an endpoint, controller or middleware is answered with:
 
-| Exception | Status | `type` fragment | Typical API `code` |
-|---|---|---|---|
-| `PoliPageAuthException` | 401 or 403 (the API's status) | `authentication_failed` | `INVALID_API_KEY`, `MISSING_API_KEY`, `FORBIDDEN`, `ORGANIZATION_PAYMENT_GRACE`, `ENVIRONMENT_PROTECTED` |
-| `PoliPageNotFoundException` | 404 | `not_found` | `PROJECT_NOT_FOUND`, `PROJECT_NOT_IN_ENVIRONMENT`, `TEMPLATE_NOT_FOUND`, `DOCUMENT_NOT_FOUND` |
-| `PoliPageGoneException` | 410 | `gone` | `DOCUMENT_GONE` |
-| `PoliPageValidationException` | 400 or 422 | `validation_failed` | `VALIDATION_ERROR` |
-| `PoliPageRateLimitException` | 429 | `rate_limited` | `RATE_LIMIT_EXCEEDED`, `QUOTA_EXCEEDED`, `OVERAGE_CAP_EXCEEDED` |
-| `PoliPageNetworkException` | 503 | `upstream_unavailable` | `network_error` |
-| `PoliPageDownloadException` | 502 | `download_failed` | `DOWNLOAD_FAILED` |
-| `PoliPageException` (fallback) | the API's status, else 500 (504 for `timeout`) | `poli_page_error` | any other code |
+- **Status**: `exception.ToPayload().Status`: the API's status, `503` for `network_error`, `504` for `timeout`, and `500` when the SDK knows no status (for example `aborted`).
+- **Body**: exactly `exception.ToPayload()`, as `application/json`. `status` and `requestId` are `null` when unknown.
 
-ProblemDetails extensions surface useful context on top of the standard fields:
+```json
+{
+  "code": "TEMPLATE_NOT_FOUND",
+  "message": "Template 'does-not-exist' not found in project 'getting-started'.",
+  "status": 404,
+  "requestId": "req_8f1c2d4e"
+}
+```
 
-- `code` — the API's error code, verbatim (for example `TEMPLATE_NOT_FOUND`); the `type` URI ends with the fragment from the table above
-- `poliPageRequestId` — the SDK's `Code`-bearing `RequestId`, when the API provided one
-- `retryAfterSeconds` — for `PoliPageRateLimitException` only, when the API supplied a `Retry-After` header
-- `traceId` — the current `Activity.Id` (or `HttpContext.TraceIdentifier` when no Activity is running)
+`code` is the API's error code verbatim (or the SDK's own code, such as `network_error`); `requestId` is the API's `x-request-id`, the value to quote to Poli Page support. A `PoliPageRateLimitException` that carries a `RetryAfter` also sets the `Retry-After` header. Every Poli Page framework integration answers with this same body, so a client can read Poli Page errors the same way whatever the backend.
+
+The handler works whether or not the app calls `app.UseExceptionHandler()`. `AddPoliPageAspNetCore` registers it three ways, all answering the same: as an `IExceptionHandler` (which `UseExceptionHandler()` runs), as a developer exception page filter (in Development that page answers before any other middleware), and as a middleware at the start of the pipeline (an `IStartupFilter`). Exceptions that are not `PoliPageException` are left to the rest of your pipeline.
+
+**Turning it off.** Set `RegisterExceptionHandler` to `false`:
+
+```csharp
+builder.Services.AddPoliPageAspNetCore(
+    builder.Configuration.GetSection("PoliPage"),
+    aspnet => aspnet.RegisterExceptionHandler = false);
+```
+
+or `"PoliPage": { "AspNetCore": { "RegisterExceptionHandler": false } }` in `appsettings.json`. A `PoliPageException` then reaches your own handling (ASP.NET Core's default is a `500`). To keep the Poli Page answer but choose where it sits in the pipeline, call `app.UsePoliPageExceptionHandler()` at that point.
+
+If an exception is thrown after the response has started (a stream that fails mid-copy), the status and headers can no longer change: the handler logs a warning (`EventId` 1001) and lets the exception through.
+
+The SDK's exception types and the statuses they usually carry:
+
+| Exception | Status | Typical `code` |
+|---|---|---|
+| `PoliPageAuthException` | 401 or 403 (the API's status) | `INVALID_API_KEY`, `MISSING_API_KEY`, `FORBIDDEN`, `ORGANIZATION_PAYMENT_GRACE`, `ENVIRONMENT_PROTECTED` |
+| `PoliPageNotFoundException` | 404 | `PROJECT_NOT_FOUND`, `PROJECT_NOT_IN_ENVIRONMENT`, `TEMPLATE_NOT_FOUND`, `DOCUMENT_NOT_FOUND` |
+| `PoliPageGoneException` | 410 | `DOCUMENT_GONE` |
+| `PoliPageValidationException` | 400 or 422 | `VALIDATION_ERROR` |
+| `PoliPageRateLimitException` | 429 | `RATE_LIMIT_EXCEEDED`, `QUOTA_EXCEEDED`, `OVERAGE_CAP_EXCEEDED` |
+| `PoliPageNetworkException` | 503 | `network_error` |
+| `PoliPageDownloadException` | the storage's status; 500 when there was none | `DOWNLOAD_FAILED` |
+| `PoliPageException` | the API's status; 504 for `timeout`; 500 when none | any other code |
+
+To answer one error family differently, catch it in the endpoint; everything else still goes to the handler:
 
 ```csharp
 try
@@ -317,15 +344,15 @@ catch (PoliPageRateLimitException ex)
 }
 ```
 
-You can also let the handler do all the mapping — the explicit `try`/`catch` is only needed when you want a custom response for one error family.
+The explicit `try`/`catch` is only needed when you want a custom response for one error family.
 
 ## Example app
 
-A runnable Minimal API + MVC app at [`example-app/`](example-app/) demonstrates every public SDK method. `GET /` redirects to an interactive single-page dashboard at `/demo.html` that exercises render (`/render/pdf`, `/render/stream`), document lifecycle (`POST /documents`, `GET/DELETE /documents/{id}`, `/preview`, `/thumbnails`), and the typed-exception path (`/errors/not-found`: a real render of the `does-not-exist` template that answers `404` ProblemDetails with code `TEMPLATE_NOT_FOUND`).
+A runnable Minimal API + MVC app at [`example-app/`](example-app/) demonstrates every public SDK method. `GET /` redirects to an interactive single-page dashboard at `/demo.html` that exercises render (`/render/pdf`, `/render/stream`), document lifecycle (`POST /documents`, `GET/DELETE /documents/{id}`, `/preview`, `/thumbnails`), and the typed-exception path (`/errors/not-found`: a real render of the `does-not-exist` template that the default error handler answers with `404` and the `ToPayload()` body, code `TEMPLATE_NOT_FOUND`).
 
 ```bash
 cd example-app
-POLI_PAGE_API_KEY=pp_sandbox_… dotnet run
+POLI_PAGE_API_KEY=pp_sandbox_… dotnet run -f net10.0
 ```
 
 Or drop `POLI_PAGE_API_KEY` (and optionally `POLI_PAGE_BASE_URL`) into a `.env` file above the app — the example app loads the nearest one at startup; real shell exports always win.
@@ -348,6 +375,8 @@ The package follows .NET's own LTS window. Non-LTS runtimes (9, 11) are best-eff
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+**Contract tests.** `tests/PoliPage.AspNetCore.IntegrationTests/Contract` runs the integration cases (`impl.*`) of the [Poli Page API contract](https://github.com/poli-page/api-contract) against the example app, with its SDK pointed at a local mock server. CI runs them on every leg against the pinned contract (`poli-page/api-contract` action, v1.3.0). Locally: `POLI_CONTRACT=<path to contract.json> dotnet test tests/PoliPage.AspNetCore.IntegrationTests --filter "Category!=Integration"`; without `POLI_CONTRACT` they are skipped. `tests/contract-skip.json` lists the cases allowed to fail, each with its reason.
 
 ## License
 

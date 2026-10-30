@@ -4,7 +4,7 @@
 
 ## Why
 
-`AddPoliPageAspNetCore` registers `PoliPageClient` as a singleton wired to `IHttpClientFactory`. Letting that client reach the network during unit tests is slow, flaky, and burns API quota. The SDK's own test suite already covers HTTP transport, retries, error mapping, idempotency, and stream chunking (see [CLAUDE.md §4](../CLAUDE.md) *What NOT to test*) — your tests focus on endpoint behaviour and the integration's response / exception-handler wiring, not on the SDK.
+`AddPoliPageAspNetCore` registers `PoliPageClient` as a singleton wired to `IHttpClientFactory`. Letting that client reach the network during unit tests is slow, flaky, and burns API quota. The SDK's own test suite already covers HTTP transport, retries, error mapping, idempotency, and stream chunking — your tests focus on endpoint behaviour and the integration's response / exception-handler wiring, not on the SDK.
 
 ## Make `Program` testable
 
@@ -14,7 +14,7 @@
 public partial class Program { }
 ```
 
-This is the Microsoft-blessed pattern. Don't replace it with `[InternalsVisibleTo]` — `Program` ends up public anyway and the partial class is one line. This is the same pattern our `example-app/Program.cs` uses (CLAUDE.md §10.4).
+This is the Microsoft-blessed pattern. Don't replace it with `[InternalsVisibleTo]` — `Program` ends up public anyway and the partial class is one line. This is the same pattern our `example-app/Program.cs` uses.
 
 ## Why not subclass `PoliPageClient`?
 
@@ -167,13 +167,13 @@ public class InvoiceEndpointTests : IClassFixture<PoliPageWebApplicationFactory>
 }
 ```
 
-## Asserting on `PoliPageException` → `ProblemDetails` mapping
+## Asserting on the error payload
 
-The auto-registered `IExceptionHandler` (or the fallback middleware) delegates to `IProblemDetailsService` which writes `application/problem+json`. Throw a typed `PoliPageException` from the stub, assert against the resulting body:
+The error handler `AddPoliPageAspNetCore` turns on answers a `PoliPageException` with the SDK's `ToPayload()` as `application/json`: `{ "code", "message", "status", "requestId" }`, with the payload's status (500 when it has none). Throw a typed `PoliPageException` from the stub and assert against the body:
 
 ```csharp
 [Fact]
-public async Task Validation_failure_maps_to_422_problem_details()
+public async Task Validation_failure_answers_422_with_the_error_payload()
 {
     _factory.Stub.SetException(new PoliPageValidationException(
         PoliPageErrorCode.ValidationError,
@@ -185,20 +185,21 @@ public async Task Validation_failure_maps_to_422_problem_details()
     var response = await client.GetAsync("/invoices/INV-42.pdf");
 
     response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-    response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
+    response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
 
-    var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
-    // `code` is the API's error code, verbatim; the `type` URI ends with "#validation_failed".
-    problem.GetProperty("code").GetString().Should().Be(PoliPageErrorCode.ValidationError);
-    problem.GetProperty("poliPageRequestId").GetString().Should().Be("req_123");
+    var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
+    payload.GetProperty("code").GetString().Should().Be(PoliPageErrorCode.ValidationError);
+    payload.GetProperty("message").GetString().Should().Be("template data missing required field 'amount'");
+    payload.GetProperty("status").GetInt32().Should().Be(422);
+    payload.GetProperty("requestId").GetString().Should().Be("req_123");
 }
 ```
 
-The actual SDK exception classes the handler maps are: `PoliPageAuthException` (401 or 403), `PoliPageNotFoundException` (404), `PoliPageGoneException` (410, `DOCUMENT_GONE`), `PoliPageValidationException` (400 or 422 depending on `StatusCode`), `PoliPageRateLimitException` (429), `PoliPageNetworkException` (503), `PoliPageDownloadException` (502), and `PoliPageException` itself (the API's status, else 500). See the README "Errors" section for the full table.
+See the README "Errors" section for the statuses each SDK exception carries.
 
-### Testing the `IExceptionHandler` path vs the fallback middleware
+### Testing with the handler turned off
 
-Two distinct code paths must each be exercised. The primary path (`IExceptionHandler` + `app.UseExceptionHandler()`) is what 99% of hosts run; the fallback (`app.UsePoliPageExceptionHandler()` middleware) is what hosts without `UseExceptionHandler()` get. The integration's option flags toggle between them:
+When your app handles `PoliPageException` itself, turn the handler off in the factory with the same option your app sets, and assert on your own answer:
 
 ```csharp
 using Microsoft.AspNetCore.Hosting;
@@ -209,11 +210,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using PoliPage;
 
-// Primary path: use the factory above as-is — the default
-// RegisterExceptionHandler == true wires the IExceptionHandler.
-
-// Fallback path: opt out of the IExceptionHandler, opt into the middleware.
-public sealed class FallbackPathFactory : WebApplicationFactory<Program>
+public sealed class HandlerOffFactory : WebApplicationFactory<Program>
 {
     public StubPoliPageHttpHandler Stub { get; } = new();
 
@@ -237,34 +234,7 @@ public sealed class FallbackPathFactory : WebApplicationFactory<Program>
 }
 ```
 
-Your `Program.cs` flips between `app.UseExceptionHandler()` and `app.UsePoliPageExceptionHandler()` based on the flag — see the example app for the pattern. Never enable both ([CLAUDE.md §10.11](../CLAUDE.md)).
-
-### Asserting on `IProblemDetailsService` cooperation
-
-A common reason to register your own `services.AddProblemDetails(opts => opts.CustomizeProblemDetails = ...)` callback is to add request-correlation fields (a tenant id, a feature flag context). Verify the package's handler picks the callback up:
-
-```csharp
-[Fact]
-public async Task Customize_callback_applies_to_PoliPage_problem_details()
-{
-    await using var factory = new PoliPageWebApplicationFactory();
-    factory.Stub.SetException(new PoliPageAuthException(
-        PoliPageErrorCode.InvalidApiKey, 401, "bad key", requestId: "req_x"));
-
-    var derived = factory.WithWebHostBuilder(b => b.ConfigureServices(s =>
-    {
-        s.AddProblemDetails(o => o.CustomizeProblemDetails = ctx =>
-            ctx.ProblemDetails.Extensions["tenantId"] = "acme");
-    }));
-
-    using var client = derived.CreateClient();
-    var response = await client.GetAsync("/invoices/INV-42.pdf");
-
-    var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
-    problem.GetProperty("tenantId").GetString().Should().Be("acme");
-    problem.GetProperty("code").GetString().Should().Be(PoliPageErrorCode.InvalidApiKey);
-}
-```
+The flag is read when `AddPoliPageAspNetCore` runs, so it must come from configuration your `Program.cs` binds (`PoliPage:AspNetCore:RegisterExceptionHandler`), not from a later `services.Configure<PoliPageAspNetCoreOptions>(...)`.
 
 ## Integration tests against the real API
 
@@ -323,7 +293,7 @@ public class SmokeEndpointTests
 - **`WebApplicationFactory<Program>` boots the whole `Program.cs` pipeline.** If your `Program.cs` opens database connections or calls external services at startup, gate those behind `app.Environment.IsDevelopment()` / `IsProduction()` and set the environment to `Testing` in the factory's `UseEnvironment("Testing")`.
 - **`services.RemoveAll<T>()` is in `Microsoft.Extensions.DependencyInjection.Extensions`.** The single-line variant `services.Remove(...)` only removes one registration — for a singleton client, that's the same thing, but for multi-registered services (named `HttpClient`s, for example), `RemoveAll` is what you want.
 - **The named `HttpClient`s (`"PoliPage"`, `"PoliPage.Download"`) survive the replacement.** They're registered by the SDK's `AddPoliPage` and your custom `PoliPageClient` singleton no longer uses them. Leaving them registered is harmless — they're lazy factories.
-- **Don't mock the SDK's transport directly** (`HttpClient`, `DelegatingHandler`, `WireMock.Net` against `BaseUrl`). You're testing your endpoint, not the SDK. The `StubPoliPageHttpHandler` pattern above is a transport stub, but it returns **one canned response per request shape** — if it grows branching logic over status codes, you're duplicating `sdk-csharp`'s test suite. See [CLAUDE.md §4](../CLAUDE.md).
+- **Don't mock the SDK's transport directly** (`HttpClient`, `DelegatingHandler`, `WireMock.Net` against `BaseUrl`). You're testing your endpoint, not the SDK. The `StubPoliPageHttpHandler` pattern above is a transport stub, but it returns **one canned response per request shape** — if it grows branching logic over status codes, you're duplicating `sdk-csharp`'s test suite.
 - **The audit's `PostConfigure<PoliPageClientOptions>` shortcut doesn't work** against the SDK as it ships today — `services.AddPoliPage` constructs the singleton with `opts with { HttpClient = factory.CreateClient(...) }`, overwriting anything `PostConfigure` set. The `RemoveAll<PoliPageClient>()` + re-register pattern above is the verified path.
 
 ## Related

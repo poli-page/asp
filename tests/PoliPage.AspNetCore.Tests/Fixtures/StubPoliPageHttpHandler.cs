@@ -12,7 +12,7 @@ namespace PoliPage.AspNetCore.Tests.Fixtures;
 // When NextException is set, every call throws it so the IExceptionHandler / middleware
 // can be exercised end-to-end without modelling real API failure modes.
 //
-// CLAUDE.md §4 discipline reminder: this stub returns ONE canned response per request shape.
+// Discipline reminder: this stub returns ONE canned response per request shape.
 // It is NOT a WireMock-style retest of the SDK — it does not exercise retry budgets, timeout
 // behaviour, or 4xx→exception mapping. Tests that need those belong on the SDK, not here.
 internal sealed class StubPoliPageHttpHandler : DelegatingHandler
