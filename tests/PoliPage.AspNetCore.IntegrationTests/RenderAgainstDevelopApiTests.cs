@@ -70,15 +70,15 @@ public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<
         var response = await client.GetAsync("/errors/not-found");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
 
-        using var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        problem.RootElement.GetProperty("code").GetString().Should().Be("TEMPLATE_NOT_FOUND");
-        problem.RootElement.GetProperty("status").GetInt32().Should().Be(404);
-        problem.RootElement.GetProperty("detail").GetString().Should().NotBeNullOrWhiteSpace();
-        // The SDK contract types the request id as optional (PoliPageErrorPayload.RequestId is
-        // "the server-assigned request identifier, or null"), and the factory omits the field then.
-        if (problem.RootElement.TryGetProperty("poliPageRequestId", out var requestId))
-            requestId.GetString().Should().NotBeNullOrWhiteSpace();
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        payload.RootElement.EnumerateObject().Select(p => p.Name).Should()
+            .Equal("code", "message", "status", "requestId");
+        payload.RootElement.GetProperty("code").GetString().Should().Be("TEMPLATE_NOT_FOUND");
+        payload.RootElement.GetProperty("status").GetInt32().Should().Be(404);
+        payload.RootElement.GetProperty("message").GetString().Should().NotBeNullOrWhiteSpace();
+        // The API sends x-request-id on every answer; ToPayload() carries it.
+        payload.RootElement.GetProperty("requestId").GetString().Should().NotBeNullOrWhiteSpace();
     }
 }

@@ -1,4 +1,6 @@
 using System.Linq;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -121,35 +123,36 @@ public static class ServiceCollectionExtensions
         if (services.Any(d => d.ServiceType == typeof(PoliPageResponseFactory)))
             return services;
 
-        // Snapshot the ASP.NET-side flags eagerly so RegisterExceptionHandler /
-        // AddProblemDetailsService are knowable at registration time — they gate the
-        // AddExceptionHandler / AddProblemDetails calls below.
+        // Snapshot the ASP.NET-side flags eagerly: RegisterExceptionHandler and
+        // AddProblemDetailsService gate the registrations below.
         var aspnet = new PoliPageAspNetCoreOptions();
         configure?.Invoke(aspnet);
 
         services.AddOptions<PoliPageAspNetCoreOptions>()
             .Configure(o =>
             {
-                o.ProblemDetailsTypeUri = aspnet.ProblemDetailsTypeUri;
-                o.IncludeRequestIdInProblemDetails = aspnet.IncludeRequestIdInProblemDetails;
                 o.DefaultCacheControl = aspnet.DefaultCacheControl;
                 o.SetNoSniffHeader = aspnet.SetNoSniffHeader;
                 o.RegisterExceptionHandler = aspnet.RegisterExceptionHandler;
                 o.AddProblemDetailsService = aspnet.AddProblemDetailsService;
-            })
-            .Validate(Validators.ValidateProblemDetailsTypeUri,
-                "PoliPage.AspNetCore: ProblemDetailsTypeUri must be a well-formed absolute http(s) URI.")
-            .ValidateOnStart();
+            });
 
         services.AddSingleton<PoliPageResponseFactory>();
-        services.AddSingleton<PoliPageProblemDetailsFactory>();
         services.AddHostedService<ApiKeyFormatWarning>();
 
         if (aspnet.AddProblemDetailsService)
             services.AddProblemDetails();
 
         if (aspnet.RegisterExceptionHandler)
+        {
+            // Three entry points, one answer: the IExceptionHandler for apps that call
+            // app.UseExceptionHandler(); the developer page filter for Development, where that
+            // page answers before any startup-filter middleware; and a middleware at the start
+            // of the pipeline for every other case.
             services.AddExceptionHandler<PoliPageExceptionHandler>();
+            services.AddSingleton<IDeveloperPageExceptionFilter, PoliPageDeveloperPageExceptionFilter>();
+            services.AddTransient<IStartupFilter, PoliPageExceptionHandlerStartupFilter>();
+        }
 
         return services;
     }

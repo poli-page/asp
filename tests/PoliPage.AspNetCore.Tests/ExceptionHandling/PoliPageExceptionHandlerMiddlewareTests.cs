@@ -9,39 +9,37 @@ namespace PoliPage.AspNetCore.Tests.ExceptionHandling;
 public class PoliPageExceptionHandlerMiddlewareTests
 {
     [Fact]
-    public async Task InvokeAsync_catches_PoliPageException_and_writes_problem_via_service()
+    public async Task InvokeAsync_answers_a_PoliPageException_with_its_payload()
     {
-        var recorder = new RecordingProblemDetailsService();
         var httpContext = NewContext();
-        var middleware = CreateMiddleware(recorder,
+        var middleware = CreateMiddleware(
             _ => throw new PoliPageNotFoundException(PoliPageErrorCode.NotFound, 404, "missing", requestId: "req_x"));
 
         await middleware.InvokeAsync(httpContext);
 
         httpContext.Response.StatusCode.Should().Be(StatusCodes.Status404NotFound);
-        recorder.Captured.Should().NotBeNull();
-        recorder.Captured!.Extensions["code"].Should().Be(PoliPageErrorCode.NotFound);
-        recorder.Captured.Extensions["poliPageRequestId"].Should().Be("req_x");
+        httpContext.Response.ContentType.Should().Be("application/json; charset=utf-8");
+        httpContext.Response.Body.Position = 0;
+        using var doc = await JsonDocument.ParseAsync(httpContext.Response.Body);
+        doc.RootElement.ShouldBePayload(PoliPageErrorCode.NotFound, "missing", 404, "req_x");
     }
 
     [Fact]
     public async Task InvokeAsync_propagates_non_PoliPageException()
     {
-        var recorder = new RecordingProblemDetailsService();
-        var middleware = CreateMiddleware(recorder, _ => throw new InvalidOperationException("not ours"));
+        var middleware = CreateMiddleware(_ => throw new InvalidOperationException("not ours"));
         var httpContext = NewContext();
 
         Func<Task> act = () => middleware.InvokeAsync(httpContext);
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("not ours");
-        recorder.Captured.Should().BeNull();
+        httpContext.Response.Body.Length.Should().Be(0);
     }
 
     [Fact]
     public async Task InvokeAsync_rethrows_PoliPageException_when_response_has_started()
     {
-        var recorder = new RecordingProblemDetailsService();
-        var middleware = CreateMiddleware(recorder,
+        var middleware = CreateMiddleware(
             _ => throw new PoliPageAuthException(PoliPageErrorCode.InvalidApiKey, 401, "x"));
 
         var httpContext = NewContext();
@@ -50,39 +48,18 @@ public class PoliPageExceptionHandlerMiddlewareTests
         Func<Task> act = () => middleware.InvokeAsync(httpContext);
 
         await act.Should().ThrowAsync<PoliPageAuthException>();
-        recorder.Captured.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task InvokeAsync_falls_back_to_source_gen_write_when_problem_service_returns_false()
-    {
-        var recorder = new RecordingProblemDetailsService { ReturnValue = false };
-        var httpContext = NewContext();
-        var middleware = CreateMiddleware(recorder,
-            _ => throw new PoliPageAuthException(PoliPageErrorCode.InvalidApiKey, 401, "denied", requestId: "req_x"));
-
-        await middleware.InvokeAsync(httpContext);
-
-        httpContext.Response.ContentType.Should().Be("application/problem+json");
-        httpContext.Response.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
-
-        httpContext.Response.Body.Position = 0;
-        using var doc = await JsonDocument.ParseAsync(httpContext.Response.Body);
-        doc.RootElement.GetProperty("status").GetInt32().Should().Be(401);
-        doc.RootElement.GetProperty("title").GetString().Should().Be("Authentication failed");
     }
 
     [Fact]
     public async Task InvokeAsync_passes_through_when_no_exception()
     {
-        var recorder = new RecordingProblemDetailsService();
-        var middleware = CreateMiddleware(recorder, _ => Task.CompletedTask);
+        var middleware = CreateMiddleware(_ => Task.CompletedTask);
         var httpContext = NewContext();
 
         await middleware.InvokeAsync(httpContext);
 
         httpContext.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
-        recorder.Captured.Should().BeNull();
+        httpContext.Response.Body.Length.Should().Be(0);
     }
 
     private static DefaultHttpContext NewContext()
@@ -92,15 +69,6 @@ public class PoliPageExceptionHandlerMiddlewareTests
         return context;
     }
 
-    private static PoliPageExceptionHandlerMiddleware CreateMiddleware(
-        RecordingProblemDetailsService recorder,
-        RequestDelegate next,
-        Action<PoliPageAspNetCoreOptions>? configure = null)
-    {
-        var aspnet = new PoliPageAspNetCoreOptions();
-        configure?.Invoke(aspnet);
-        var factory = new PoliPageProblemDetailsFactory(Microsoft.Extensions.Options.Options.Create(aspnet));
-        return new PoliPageExceptionHandlerMiddleware(
-            next, factory, recorder, NullLogger<PoliPageExceptionHandlerMiddleware>.Instance);
-    }
+    private static PoliPageExceptionHandlerMiddleware CreateMiddleware(RequestDelegate next)
+        => new(next, NullLogger<PoliPageExceptionHandlerMiddleware>.Instance);
 }

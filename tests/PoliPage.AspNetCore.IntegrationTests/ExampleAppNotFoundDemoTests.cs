@@ -18,7 +18,7 @@ public class ExampleAppNotFoundDemoTests : IClassFixture<WebApplicationFactory<P
     public ExampleAppNotFoundDemoTests(WebApplicationFactory<Program> factory) => _factory = factory;
 
     [Fact]
-    public async Task Not_found_demo_renders_does_not_exist_and_answers_404_problem_details()
+    public async Task Not_found_demo_renders_does_not_exist_and_answers_404_with_the_error_payload()
     {
         using var api = new TemplateNotFoundApi();
         using var apiClient = new HttpClient(api, disposeHandler: false) { BaseAddress = new Uri("https://api.stub.invalid") };
@@ -38,12 +38,14 @@ public class ExampleAppNotFoundDemoTests : IClassFixture<WebApplicationFactory<P
         var response = await client.GetAsync("/errors/not-found");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
-        using var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        problem.RootElement.GetProperty("code").GetString().Should().Be("TEMPLATE_NOT_FOUND");
-        problem.RootElement.GetProperty("status").GetInt32().Should().Be(404);
-        problem.RootElement.GetProperty("detail").GetString().Should().Be("Template 'does-not-exist' not found.");
-        problem.RootElement.GetProperty("poliPageRequestId").GetString().Should().Be("req_stub");
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        payload.RootElement.EnumerateObject().Select(p => p.Name).Should()
+            .Equal("code", "message", "status", "requestId");
+        payload.RootElement.GetProperty("code").GetString().Should().Be("TEMPLATE_NOT_FOUND");
+        payload.RootElement.GetProperty("message").GetString().Should().Be("Template 'does-not-exist' not found.");
+        payload.RootElement.GetProperty("status").GetInt32().Should().Be(404);
+        payload.RootElement.GetProperty("requestId").GetString().Should().Be("req_stub");
 
         using var sent = JsonDocument.Parse(api.LastBody!);
         sent.RootElement.GetProperty("project").GetString().Should().Be("getting-started");

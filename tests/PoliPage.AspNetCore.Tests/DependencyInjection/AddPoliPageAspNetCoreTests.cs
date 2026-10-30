@@ -29,8 +29,7 @@ public class AddPoliPageAspNetCoreTests
 
         using var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<IOptions<PoliPageAspNetCoreOptions>>().Value;
-        options.ProblemDetailsTypeUri.Should().Be("https://poli.page/errors");
-        options.IncludeRequestIdInProblemDetails.Should().BeTrue();
+        options.RegisterExceptionHandler.Should().BeTrue();
         options.DefaultCacheControl.Should().Be("no-store, private");
         options.SetNoSniffHeader.Should().BeTrue();
     }
@@ -45,13 +44,13 @@ public class AddPoliPageAspNetCoreTests
             opts => opts.ApiKey = TestKeys.Sandbox,
             aspnet =>
             {
-                aspnet.ProblemDetailsTypeUri = "https://example.com/errors";
+                aspnet.DefaultCacheControl = "no-cache";
                 aspnet.SetNoSniffHeader = false;
             });
 
         using var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<IOptions<PoliPageAspNetCoreOptions>>().Value;
-        options.ProblemDetailsTypeUri.Should().Be("https://example.com/errors");
+        options.DefaultCacheControl.Should().Be("no-cache");
         options.SetNoSniffHeader.Should().BeFalse();
     }
 
@@ -95,7 +94,7 @@ public class AddPoliPageAspNetCoreTests
     }
 
     [Fact]
-    public void RegisterExceptionHandler_enabled_registers_handler()
+    public void RegisterExceptionHandler_enabled_registers_handler_developer_filter_and_startup_filter()
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -106,10 +105,20 @@ public class AddPoliPageAspNetCoreTests
             d.ImplementationType?.FullName ==
                 "PoliPage.AspNetCore.ExceptionHandling.PoliPageExceptionHandler")
             .Should().BeTrue();
+        services.Any(d =>
+            d.ServiceType == typeof(IStartupFilter)
+            && d.ImplementationType?.FullName ==
+                "PoliPage.AspNetCore.ExceptionHandling.PoliPageExceptionHandlerStartupFilter")
+            .Should().BeTrue();
+        services.Any(d =>
+            d.ServiceType == typeof(Microsoft.AspNetCore.Diagnostics.IDeveloperPageExceptionFilter)
+            && d.ImplementationType?.FullName ==
+                "PoliPage.AspNetCore.ExceptionHandling.PoliPageDeveloperPageExceptionFilter")
+            .Should().BeTrue();
     }
 
     [Fact]
-    public void RegisterExceptionHandler_disabled_skips_IExceptionHandler_registration()
+    public void RegisterExceptionHandler_disabled_skips_handler_developer_filter_and_startup_filter()
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -121,6 +130,9 @@ public class AddPoliPageAspNetCoreTests
         services.Any(d =>
             d.ImplementationType?.FullName ==
                 "PoliPage.AspNetCore.ExceptionHandling.PoliPageExceptionHandler")
+            .Should().BeFalse();
+        services.Any(d => d.ServiceType == typeof(IStartupFilter)).Should().BeFalse();
+        services.Any(d => d.ServiceType == typeof(Microsoft.AspNetCore.Diagnostics.IDeveloperPageExceptionFilter))
             .Should().BeFalse();
     }
 
@@ -189,7 +201,7 @@ public class AddPoliPageAspNetCoreTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["PoliPage:ApiKey"] = TestKeys.Sandbox,
-                ["PoliPage:AspNetCore:ProblemDetailsTypeUri"] = "https://example.com/errors",
+                ["PoliPage:AspNetCore:RegisterExceptionHandler"] = "false",
                 ["PoliPage:AspNetCore:SetNoSniffHeader"] = "false",
             })
             .Build();
@@ -201,7 +213,7 @@ public class AddPoliPageAspNetCoreTests
 
         using var provider = services.BuildServiceProvider();
         var aspnetOptions = provider.GetRequiredService<IOptions<PoliPageAspNetCoreOptions>>().Value;
-        aspnetOptions.ProblemDetailsTypeUri.Should().Be("https://example.com/errors");
+        aspnetOptions.RegisterExceptionHandler.Should().BeFalse();
         aspnetOptions.SetNoSniffHeader.Should().BeFalse();
     }
 

@@ -462,8 +462,8 @@
       <p class="desc">
         Renders the <code>getting-started</code> project's <code>does-not-exist</code> template
         with empty data. The API answers <code>404 TEMPLATE_NOT_FOUND</code>; the integration's
-        <code>IExceptionHandler</code> maps the typed <code>PoliPageNotFoundException</code> to
-        RFC 7807 ProblemDetails. The panel shows its code, status, message and request id.
+        error handler answers the <code>PoliPageNotFoundException</code> with its
+        <code>ToPayload()</code> body: code, message, status and request id.
       </p>
     </div>
     <div class="actions">
@@ -613,18 +613,8 @@
     },
     'not-found': async target => {
       const r = await fetch('/errors/not-found');
-      const body = await r.text();
-      let shown = body;
-      try {
-        const problem = JSON.parse(body);
-        shown = JSON.stringify({
-          code: problem.code,
-          status: problem.status,
-          message: problem.detail,
-          requestId: problem.poliPageRequestId,
-        });
-      } catch (e) {}
-      renderJson(target, r.status, shown, 'error payload');
+      // The integration's error handler answers { code, message, status, requestId }.
+      renderJson(target, r.status, await r.text(), 'error payload');
     },
   };
 

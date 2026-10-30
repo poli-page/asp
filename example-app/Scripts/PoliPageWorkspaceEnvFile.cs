@@ -1,9 +1,9 @@
 namespace PoliPage.AspNetCore.ExampleApp.Scripts;
 
-// Loads /Users/mickael/Projects/.env (or the nearest .env walking up from the working
-// directory) into IConfiguration. Real env vars always win — only keys absent from the
-// process environment are pushed in from the file. Mirrors the symfony-bundle / nestjs
-// example apps: single root .env, no per-app .env.local. See CLAUDE.md §10.5.
+// Loads the nearest .env walking up from the working directory into IConfiguration. Real env
+// vars always win — only keys absent from the process environment are pushed in from the
+// file. Mirrors the symfony-bundle / nestjs example apps: one shared .env, no per-app
+// .env.local.
 internal static class PoliPageWorkspaceEnvFile
 {
     // POLI_PAGE_* → PoliPage:* in IConfiguration. The .env files at the workspace root use

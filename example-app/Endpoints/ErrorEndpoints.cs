@@ -11,9 +11,9 @@ internal static class ErrorEndpoints
     }
 
     // A real render of a template that does not exist: the API answers 404 TEMPLATE_NOT_FOUND,
-    // the SDK throws PoliPageNotFoundException, and the IExceptionHandler registered by
-    // AddPoliPageAspNetCore turns it into a 404 ProblemDetails carrying code, status, detail
-    // (the message) and poliPageRequestId. The demo dashboard shows those four fields.
+    // the SDK throws PoliPageNotFoundException, and the error handler AddPoliPageAspNetCore
+    // turns on answers 404 with its ToPayload() body: { code, message, status, requestId }.
+    // No try/catch here: the default handler does it.
     private static async Task NotFoundAsync(HttpContext httpContext)
     {
         var client = httpContext.RequestServices.GetRequiredService<PoliPageClient>();

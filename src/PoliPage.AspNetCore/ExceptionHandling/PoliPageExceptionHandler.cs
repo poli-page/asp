@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -6,10 +5,10 @@ using PoliPage.AspNetCore.Internal;
 
 namespace PoliPage.AspNetCore.ExceptionHandling;
 
-internal sealed class PoliPageExceptionHandler(
-    PoliPageProblemDetailsFactory factory,
-    IProblemDetailsService problemDetailsService,
-    ILogger<PoliPageExceptionHandler> logger) : IExceptionHandler
+// The IExceptionHandler that app.UseExceptionHandler() consults. It answers every
+// PoliPageException with the SDK's ToPayload() body and leaves other exceptions to the next
+// handler.
+internal sealed class PoliPageExceptionHandler(ILogger<PoliPageExceptionHandler> logger) : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
@@ -26,18 +25,7 @@ internal sealed class PoliPageExceptionHandler(
             return false;
         }
 
-        var problem = factory.Build(httpContext, poliEx);
-        httpContext.Response.StatusCode = problem.Status ?? StatusCodes.Status500InternalServerError;
-
-        Activity.Current?.SetStatus(ActivityStatusCode.Error, poliEx.Message);
-        if (problem.Extensions.TryGetValue("code", out var code) && code is not null)
-            Activity.Current?.AddTag("polipage.error.code", code);
-
-        return await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
-        {
-            HttpContext = httpContext,
-            ProblemDetails = problem,
-            Exception = exception,
-        }).ConfigureAwait(false);
+        await PoliPageErrorResponse.WriteAsync(httpContext, poliEx, cancellationToken).ConfigureAwait(false);
+        return true;
     }
 }

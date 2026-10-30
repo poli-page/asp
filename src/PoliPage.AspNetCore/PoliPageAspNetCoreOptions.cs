@@ -7,21 +7,6 @@ namespace PoliPage.AspNetCore;
 public sealed class PoliPageAspNetCoreOptions
 {
     /// <summary>
-    /// The <c>type</c> URI returned in ProblemDetails responses written by the Poli Page
-    /// <see cref="Microsoft.AspNetCore.Diagnostics.IExceptionHandler"/> and the fallback
-    /// <c>UsePoliPageExceptionHandler</c> middleware. The exception's wire-level
-    /// <see cref="PoliPageException.Code"/> is appended as a fragment.
-    /// Defaults to <c>https://poli.page/errors</c>.
-    /// </summary>
-    public string ProblemDetailsTypeUri { get; set; } = "https://poli.page/errors";
-
-    /// <summary>
-    /// Whether to include the SDK-provided <see cref="PoliPageException.RequestId"/> in the
-    /// ProblemDetails extensions under <c>poliPageRequestId</c>. Defaults to <see langword="true"/>.
-    /// </summary>
-    public bool IncludeRequestIdInProblemDetails { get; set; } = true;
-
-    /// <summary>
     /// Default <c>Cache-Control</c> header value applied by <c>PoliPageResults</c> and
     /// <c>PoliPageResponseFactory</c>. Defaults to <c>no-store, private</c>.
     /// Set to <see langword="null"/> to omit the header.
@@ -34,19 +19,23 @@ public sealed class PoliPageAspNetCoreOptions
     public bool SetNoSniffHeader { get; set; } = true;
 
     /// <summary>
-    /// Whether <c>AddPoliPageAspNetCore</c> auto-registers the
-    /// <see cref="Microsoft.AspNetCore.Diagnostics.IExceptionHandler"/> implementation that
-    /// maps <see cref="PoliPageException"/> to ProblemDetails. Set to <see langword="false"/>
-    /// when the host uses the fallback <c>UsePoliPageExceptionHandler</c> middleware instead
-    /// (see CLAUDE.md §10.11 for why you should not enable both).
+    /// Whether <c>AddPoliPageAspNetCore</c> turns on the Poli Page error handler, which answers a
+    /// <see cref="PoliPageException"/> with the status of <see cref="PoliPageException.ToPayload"/>
+    /// (500 when it has none) and that payload as an <c>application/json</c> body:
+    /// <c>{ "code", "message", "status", "requestId" }</c>. It registers an
+    /// <see cref="Microsoft.AspNetCore.Diagnostics.IExceptionHandler"/> for
+    /// <c>app.UseExceptionHandler()</c> and adds the same handler as a middleware at the start of
+    /// the pipeline, so it works whether or not the app calls <c>UseExceptionHandler()</c>.
+    /// Set to <see langword="false"/> to turn both off and handle the exception yourself.
     /// Defaults to <see langword="true"/>.
     /// </summary>
     public bool RegisterExceptionHandler { get; set; } = true;
 
     /// <summary>
-    /// Whether <c>AddPoliPageAspNetCore</c> calls <c>services.AddProblemDetails()</c> so the
-    /// Poli Page handler can delegate to <c>IProblemDetailsService</c> (which respects any
-    /// host-side <c>CustomizeProblemDetails</c> callbacks). Defaults to <see langword="true"/>.
+    /// Whether <c>AddPoliPageAspNetCore</c> calls <c>services.AddProblemDetails()</c>, which
+    /// <c>app.UseExceptionHandler()</c> needs when it is called with no path or handler.
+    /// Poli Page errors never go through it; it shapes the app's other unhandled exceptions.
+    /// Defaults to <see langword="true"/>.
     /// </summary>
     public bool AddProblemDetailsService { get; set; } = true;
 }
