@@ -85,7 +85,7 @@ jobs:
           dotnet pack src/PoliPage.AspNetCore/PoliPage.AspNetCore.csproj \
             --configuration Release --no-build --output ./nupkg
 
-      # Hand the exact .nupkg + .snupkg to the gated publish job so it pushes
+      # Hand the exact .nupkg to the gated publish job so it pushes
       # the bits that were tested here, byte-for-byte — no rebuild after approval.
       - name: Upload package artifact
         uses: actions/upload-artifact@v7
@@ -133,8 +133,8 @@ jobs:
         with:
           user: ${{ secrets.NUGET_USER }}
 
-      # `dotnet nuget push` also pushes the matching .snupkg (portable PDBs for
-      # the symbol server) that sits next to each .nupkg.
+      # Symbols are embedded in the assembly (DebugType=embedded in
+      # Directory.Build.props), so there is no separate .snupkg to push.
       # --skip-duplicate turns a 409 (version already pushed) into a warning
       # so a re-run after a partial failure does not hard-fail.
       - name: Push to nuget.org

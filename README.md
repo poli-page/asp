@@ -370,7 +370,7 @@ Or drop `POLI_PAGE_API_KEY` (and optionally `POLI_PAGE_BASE_URL`) into a `.env` 
 
 | Package | .NET | ASP.NET Core |
 |---|---|---|
-| 0.1.x | 8.0 LTS / 10.0 LTS | 8.0 / 10.0 |
+| 0.11.x | 8.0 LTS / 10.0 LTS | 8.0 / 10.0 |
 
 The package follows .NET's own LTS window. Non-LTS runtimes (9, 11) are best-effort but not in the CI matrix.
 

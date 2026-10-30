@@ -30,8 +30,9 @@
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/poli-page/asp</PackageProjectUrl>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <IncludeSymbols>true</IncludeSymbols>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <!-- The PDB is embedded in the assembly (as in poli-page/sdk-csharp), so the release pushes a
+         single .nupkg and no .snupkg; SourceLink still gives consumers step-into debugging. -->
+    <DebugType>embedded</DebugType>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
     <DeterministicSourcePaths Condition="'$(ContinuousIntegrationBuild)' == 'true'">true</DeterministicSourcePaths>
