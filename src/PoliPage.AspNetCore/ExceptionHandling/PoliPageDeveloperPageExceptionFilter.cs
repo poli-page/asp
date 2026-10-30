@@ -31,6 +31,6 @@ internal sealed class PoliPageDeveloperPageExceptionFilter(ILogger<PoliPageDevel
             return;
         }
 
-        await PoliPageErrorResponse.WriteAsync(httpContext, poliEx, httpContext.RequestAborted).ConfigureAwait(false);
+        await PoliPageErrorResponse.WriteAsync(httpContext, poliEx, logger, httpContext.RequestAborted).ConfigureAwait(false);
     }
 }

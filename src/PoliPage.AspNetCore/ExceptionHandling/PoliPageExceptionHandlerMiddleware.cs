@@ -27,7 +27,7 @@ internal sealed class PoliPageExceptionHandlerMiddleware(
                 throw;
             }
 
-            await PoliPageErrorResponse.WriteAsync(httpContext, ex, httpContext.RequestAborted).ConfigureAwait(false);
+            await PoliPageErrorResponse.WriteAsync(httpContext, ex, logger, httpContext.RequestAborted).ConfigureAwait(false);
         }
     }
 }

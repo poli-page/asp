@@ -2,19 +2,34 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using PoliPage.AspNetCore.Internal;
 
 namespace PoliPage.AspNetCore.ExceptionHandling;
 
 // Writes a PoliPageException as the HTTP answer every Poli Page integration gives:
 // status = ToPayload().Status, or 500 when the SDK knows none; body = ToPayload() as JSON,
-// { "code", "message", "status", "requestId" }; Content-Type application/json.
+// { "code", "message", "status", "requestId" }; Content-Type application/json. Logs it
+// (EventId 1002): once handled, ASP.NET Core does not log the exception itself on every path.
 internal static class PoliPageErrorResponse
 {
     public const string ContentType = "application/json; charset=utf-8";
 
-    public static async Task WriteAsync(HttpContext httpContext, PoliPageException exception, CancellationToken cancellationToken)
+    public static async Task WriteAsync(
+        HttpContext httpContext,
+        PoliPageException exception,
+        ILogger logger,
+        CancellationToken cancellationToken)
     {
         var payload = exception.ToPayload();
+        var status = payload.Status ?? StatusCodes.Status500InternalServerError;
+        LogMessages.PoliPageErrorAnswered(
+            logger,
+            status >= StatusCodes.Status500InternalServerError ? LogLevel.Error : LogLevel.Warning,
+            exception,
+            payload.Code,
+            status,
+            payload.RequestId ?? "none");
 
         // Serialised to a byte array and written to the body stream, not through
         // WriteAsJsonAsync: on net8.0 that path needs PipeWriter.UnflushedBytes, which some
@@ -23,7 +38,7 @@ internal static class PoliPageErrorResponse
 
         var response = httpContext.Response;
         response.Clear();
-        response.StatusCode = payload.Status ?? StatusCodes.Status500InternalServerError;
+        response.StatusCode = status;
         response.ContentType = ContentType;
         response.ContentLength = body.Length;
         if (exception is PoliPageRateLimitException { RetryAfter: { } retryAfter })

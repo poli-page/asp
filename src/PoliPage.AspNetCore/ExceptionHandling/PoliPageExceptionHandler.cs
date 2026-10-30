@@ -25,7 +25,7 @@ internal sealed class PoliPageExceptionHandler(ILogger<PoliPageExceptionHandler>
             return false;
         }
 
-        await PoliPageErrorResponse.WriteAsync(httpContext, poliEx, cancellationToken).ConfigureAwait(false);
+        await PoliPageErrorResponse.WriteAsync(httpContext, poliEx, logger, cancellationToken).ConfigureAwait(false);
         return true;
     }
 }

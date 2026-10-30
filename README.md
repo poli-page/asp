@@ -306,6 +306,8 @@ builder.Services.AddPoliPageAspNetCore(
 
 or `"PoliPage": { "AspNetCore": { "RegisterExceptionHandler": false } }` in `appsettings.json`. A `PoliPageException` then reaches your own handling (ASP.NET Core's default is a `500`). To keep the Poli Page answer but choose where it sits in the pipeline, call `app.UsePoliPageExceptionHandler()` at that point.
 
+Each answered error is logged once (`EventId` 1002, category `PoliPage.AspNetCore.ExceptionHandling.*`) with the exception: `Poli Page error {Code} answered with HTTP {Status} (request id {RequestId}).`, at `Error` for a 5xx answer and `Warning` otherwise. The line carries the code, status and request id, never the API key.
+
 If an exception is thrown after the response has started (a stream that fails mid-copy), the status and headers can no longer change: the handler logs a warning (`EventId` 1001) and lets the exception through.
 
 The SDK's exception types and the statuses they usually carry:

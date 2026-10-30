@@ -12,6 +12,14 @@ internal static partial class LogMessages
         Message = "PoliPageException thrown after response started; cannot rewrite headers.")]
     public static partial void ExceptionAfterResponseStarted(ILogger logger, Exception exception);
 
+    // The error handler's answer to a PoliPageException. Error when the HTTP status is 5xx (the
+    // upstream or the network failed), Warning otherwise. The code, status and request id come
+    // from the API or the SDK, never from the API key. RequestId is "none" when the API sent none.
+    [LoggerMessage(EventId = 1002,
+        Message = "Poli Page error {Code} answered with HTTP {Status} (request id {RequestId}).")]
+    public static partial void PoliPageErrorAnswered(
+        ILogger logger, LogLevel level, Exception exception, string code, int status, string requestId);
+
     [LoggerMessage(EventId = 2001, Level = LogLevel.Warning,
         Message = "MapPoliPageSmokeTest is registered without explicit .RequireAuthorization(...) or .AllowAnonymous(). " +
                   "In production this endpoint will burn API quota on unauthenticated callers — gate it or opt out explicitly.")]
