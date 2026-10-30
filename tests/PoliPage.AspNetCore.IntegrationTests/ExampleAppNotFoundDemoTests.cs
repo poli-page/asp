@@ -54,6 +54,36 @@ public class ExampleAppNotFoundDemoTests : IClassFixture<WebApplicationFactory<P
         sent.RootElement.TryGetProperty("version", out _).Should().BeFalse();
     }
 
+    // The stream route awaits Render.PdfStreamAsync (the render and the start of the download)
+    // before it returns a result, so a render error is answered before any PDF header is sent.
+    [Fact]
+    public async Task Stream_route_answers_a_render_error_with_the_payload_not_a_started_pdf()
+    {
+        using var api = new TemplateNotFoundApi();
+        using var apiClient = new HttpClient(api, disposeHandler: false) { BaseAddress = new Uri("https://api.stub.invalid") };
+        using var app = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(
+                new Dictionary<string, string?> { ["PoliPage:ApiKey"] = TestKeys.Sandbox }));
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<PoliPageClient>();
+                services.AddSingleton(sp => new PoliPageClient(
+                    sp.GetRequiredService<IOptions<PoliPageClientOptions>>().Value with { HttpClient = apiClient }));
+            });
+        });
+        using var client = app.CreateClient();
+
+        var response = await client.GetAsync("/render/stream");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
+        response.Content.Headers.ContentDisposition.Should().BeNull();
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        payload.RootElement.GetProperty("code").GetString().Should().Be("TEMPLATE_NOT_FOUND");
+        payload.RootElement.GetProperty("status").GetInt32().Should().Be(404);
+    }
+
     private sealed class TemplateNotFoundApi : HttpMessageHandler
     {
         public string? LastBody { get; private set; }

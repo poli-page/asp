@@ -1,6 +1,8 @@
 # SDK surface audit — 2026-06-01
 
-> Audit performed as Task 0 of `docs/plan/2026-06-01-implementation.md`. Confirms (or refutes) the three load-bearing SDK assumptions in that plan before any source code lands. No source code in this PR — output is this report and the plan amendments it triggers.
+> **Historical record.** This audit predates SDK 0.11.0 and the current error handler. Its recommendations about ProblemDetails (`PoliPageProblemDetailsFactory`, `ProblemDetailsTypeUri`, ProblemDetails extensions) no longer apply: the package now answers a `PoliPageException` with the SDK's `ToPayload()` body (see the README's "Errors" section). The implementation plan it refers to is not part of this repository.
+
+> Audit performed as Task 0 of the package's 2026-06-01 implementation plan (not in this repository). Confirms (or refutes) the three load-bearing SDK assumptions in that plan before any source code lands. No source code in this PR — output is this report and the plan amendments it triggers.
 >
 > SDK audited: `poli-page/sdk-csharp` @ `main` (`d74ec9f` — *fix(api): align endpoint paths with /v1 prefix and adopt the two-step PDF model*).
 
@@ -105,7 +107,7 @@ Of the three recovery paths the plan lists:
 
 None of the three load-bearing assumptions held verbatim, but all three are recoverable inside the existing plan without an SDK change. Concretely, before opening the PR for Task 1:
 
-1. **Edit Task 12** (`docs/plan/2026-06-01-implementation.md`) to use the actual exception classes and ctor shape (see 0.1 above). Add ProblemDetails extension wiring for `PoliPageRateLimitException.RetryAfter`. Replace `ex.ErrorCode` with `ex.Code` throughout.
+1. **Edit Task 12** (of the implementation plan) to use the actual exception classes and ctor shape (see 0.1 above). Add ProblemDetails extension wiring for `PoliPageRateLimitException.RetryAfter`. Replace `ex.ErrorCode` with `ex.Code` throughout.
 2. **Edit Task 13** to replace the `FakePoliPageClient` subclass with `StubPoliPageHttpHandler : DelegatingHandler`. Clarify that the ~95% / ~5% mocking ratio inverts — most tests need no SDK fake at all.
 3. **Strike Task 14 and the health-checks package references** from Tasks 1.3 / 2.1. Defer to v0.2. Update the package's feature list to match.
 4. **Open SDK issues** in `poli-page/sdk-csharp` tracking (a) adding a public `PoliPageClient.PingAsync(CancellationToken)` for health probes, (b) the integration's interest in unsealing `PoliPageClient` *if* test virtualization ever becomes load-bearing.
