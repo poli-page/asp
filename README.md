@@ -41,7 +41,7 @@ Or add the reference directly to your `.csproj`:
 ```xml
 <ItemGroup>
   <!-- Brings in the PoliPage SDK, 0.11.0 or later. -->
-  <PackageReference Include="PoliPage.AspNetCore" Version="0.1.0" />
+  <PackageReference Include="PoliPage.AspNetCore" Version="0.11.0" />
 </ItemGroup>
 ```
 
@@ -246,7 +246,7 @@ All of these flow through `IConfiguration` automatically — `AddPoliPageAspNetC
 - Blue/green deploy: standard. The new pod boots with the new key; traffic shifts; the old pod drains.
 - `kubectl rollout restart deployment/your-api`: forces a pod restart, picking up the new key.
 
-A live-reload story (subscribe to `IOptionsMonitor.OnChange`, swap the inner client behind a thread-safe accessor) is deferred to v0.2 — it requires SDK cooperation that doesn't exist yet.
+A live-reload story (subscribe to `IOptionsMonitor.OnChange`, swap the inner client behind a thread-safe accessor) is deferred to a later release — it requires SDK cooperation that doesn't exist yet.
 
 ### Behind a reverse proxy
 

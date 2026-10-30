@@ -8,7 +8,7 @@ namespace PoliPage.AspNetCore.Tests.Fixtures;
 // In-process WebApplication backed by Microsoft.AspNetCore.TestHost. Replaces the SDK's
 // PoliPageClient singleton with one whose HttpClients are backed by StubPoliPageHttpHandler —
 // the SDK's registration overwrites options.HttpClient unconditionally via "opts with",
-// so PostConfigure<PoliPageClientOptions> alone is not enough (see Task 13 commit body).
+// so PostConfigure<PoliPageClientOptions> alone is not enough.
 internal sealed class PoliPageTestHost : IAsyncDisposable
 {
     public WebApplication App { get; }

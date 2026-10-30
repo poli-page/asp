@@ -2,7 +2,9 @@
 
 This file documents breaking changes between releases of `PoliPage.AspNetCore`. Future migrations land here so consumers always know where to look.
 
-## From 0.1.x to the next release (unreleased)
+## 0.11.0: first release
+
+`0.11.0` is the first release on NuGet, versioned to match the `PoliPage` SDK 0.11.0 it requires. New users need no migration. The notes below are for apps built against the unpublished `0.1.0` pre-release (from a local package source).
 
 **SDK 0.11.0.** The package now requires `PoliPage` 0.11.0 or later. API keys are `pp_{env}_{32 lowercase hex}` (`pp_sandbox_…`, `pp_live_…`) and select the environment; `RenderInput` has no `Version`. See the SDK's migration guide for the SDK side.
 
@@ -22,11 +24,4 @@ Clients that read the ProblemDetails fields must read the new ones. `PoliPageAsp
 
 **On by default.** The handler now answers even when the app does not call `app.UseExceptionHandler()`, and in Development before the developer exception page. To handle `PoliPageException` yourself, set `PoliPage:AspNetCore:RegisterExceptionHandler` to `false`.
 
-## From 0.0.x to 0.1.0
-
-`0.0.x` never shipped publicly — `0.1.0` is the first release on NuGet. No migration is required.
-
-If you were tracking the package via the local `nuget.config` source while it was unpublished, switch back to the public registry:
-
-1. Remove the `poli-page-local` `<add key="…"/>` line from your `nuget.config` (or delete `nuget.config` entirely if it had no other entries).
-2. Run `dotnet restore` — the resolver picks `PoliPage.AspNetCore 0.1.0` from `nuget.org` automatically.
+**Package source.** If you resolved the pre-release from a local `nuget.config` source, remove that `<add key="…"/>` line (or delete `nuget.config` if it had no other entries) and run `dotnet restore`: `PoliPage.AspNetCore` 0.11.0 now comes from `nuget.org`.

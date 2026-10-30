@@ -8,7 +8,7 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <!-- Silence "missing XML doc" during the scaffolding tasks; the source project flips it back on in Task 2. -->
+    <!-- Silence "missing XML doc" in tests and the example app; the library's csproj resets NoWarn, so CS1591 stays an error there. -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
 
     <!-- AOT + trimming. net8.0's AOT analyzer still flags BCL ASP.NET helpers the platform team has since fixed,
@@ -19,6 +19,8 @@
   </PropertyGroup>
 
   <PropertyGroup>
+    <!-- The package version. The release workflow checks that the pushed tag (vX.Y.Z) matches it. -->
+    <Version>0.11.0</Version>
     <Authors>Poli Page</Authors>
     <Company>Poli Page</Company>
     <Copyright>Copyright (c) 2026 Poli Page</Copyright>
@@ -31,6 +33,7 @@
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
     <DeterministicSourcePaths Condition="'$(ContinuousIntegrationBuild)' == 'true'">true</DeterministicSourcePaths>
   </PropertyGroup>
 

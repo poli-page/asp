@@ -24,7 +24,7 @@
     <!-- Runtime: source-gen binder activates only when this package is referenced explicitly. -->
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
 
-    <!-- HealthChecks integration deferred to v0.2 — see docs/sdk-surface-audit-2026-06-01.md §0.3. -->
+    <!-- HealthChecks integration deferred to a later release — see docs/sdk-surface-audit-2026-06-01.md §0.3. -->
   </ItemGroup>
 
   <ItemGroup>
