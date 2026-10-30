@@ -38,7 +38,8 @@ internal sealed class PoliPageTestHost : IAsyncDisposable
         Action<WebApplication> configureApp,
         Action<PoliPageAspNetCoreOptions>? configureAspNet = null,
         bool useFallbackMiddleware = false,
-        bool wireDefaultExceptionHandler = true)
+        bool wireDefaultExceptionHandler = true,
+        string environmentName = "Production")
     {
         ArgumentNullException.ThrowIfNull(configureApp);
 
@@ -53,7 +54,9 @@ internal sealed class PoliPageTestHost : IAsyncDisposable
         };
         var stubDownloadClient = new HttpClient(stub, disposeHandler: false);
 
-        var builder = WebApplication.CreateBuilder();
+        // An explicit environment: in Development, WebApplication adds the developer exception
+        // page, which changes who answers an unhandled exception.
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = environmentName });
         builder.WebHost.UseTestServer();
 
         builder.Logging.ClearProviders();
@@ -61,7 +64,7 @@ internal sealed class PoliPageTestHost : IAsyncDisposable
         builder.Logging.SetMinimumLevel(LogLevel.Debug);
 
         builder.Services.AddPoliPageAspNetCore(
-            opts => opts.ApiKey = "pp_test_factory",
+            opts => opts.ApiKey = TestKeys.Sandbox,
             configureAspNet);
 
         // Replace the SDK's PoliPageClient registration. The SDK's singleton factory does

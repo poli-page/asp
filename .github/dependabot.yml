@@ -1,0 +1,28 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: daily
+    # Dependabot waits 3 days after a release by default; the API contract is exempt, so a new
+    # contract version arrives the next day and its CI run shows what the API change breaks.
+    cooldown:
+      default-days: 3
+      exclude:
+        - "poli-page/api-contract"
+    groups:
+      api-contract:
+        patterns:
+          - "poli-page/api-contract"
+      actions:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "poli-page/api-contract"
+
+  # Directory.Packages.props pins every NuGet package (the PoliPage SDK, the example app's and
+  # the tests' dependencies) for the whole solution.
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly

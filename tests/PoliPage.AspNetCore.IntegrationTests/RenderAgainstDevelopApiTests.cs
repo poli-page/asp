@@ -3,10 +3,9 @@ using System.Text.Json;
 namespace PoliPage.AspNetCore.IntegrationTests;
 
 // Round-trips the example-app against the live API. Tagged Category=Integration so
-// CI / dotnet test runs that filter on "Category!=Integration" skip them by default —
-// these tests cost real API quota. Each test also self-skips when POLI_PAGE_API_KEY
-// is absent, so an accidental run on an unconfigured environment passes silently
-// rather than failing red.
+// CI / dotnet test runs that filter on "Category!=Integration" skip them by default.
+// [SandboxFact] also reports each test as skipped unless POLI_PAGE_API_KEY is a well-formed
+// sandbox key.
 [Trait("Category", "Integration")]
 public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<Program>>
 {
@@ -14,12 +13,9 @@ public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<
 
     public RenderAgainstDevelopApiTests(WebApplicationFactory<Program> factory) => _factory = factory;
 
-    [Fact]
+    [SandboxFact]
     public async Task Smoke_endpoint_round_trips_against_develop()
     {
-        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("POLI_PAGE_API_KEY")))
-            return;
-
         using var client = _factory.CreateClient();
         var response = await client.GetAsync("/poli-page/smoke");
 
@@ -31,12 +27,9 @@ public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<
         bytes.Length.Should().BeGreaterThan(1024);
     }
 
-    [Fact]
+    [SandboxFact]
     public async Task Render_pdf_endpoint_round_trips_against_develop()
     {
-        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("POLI_PAGE_API_KEY")))
-            return;
-
         using var client = _factory.CreateClient();
         var response = await client.GetAsync("/render/pdf");
 
@@ -49,31 +42,9 @@ public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<
         bytes.Length.Should().BeGreaterThan(1024);
     }
 
-    [Fact]
-    public async Task Render_preview_endpoint_round_trips_against_develop()
-    {
-        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("POLI_PAGE_API_KEY")))
-            return;
-
-        using var client = _factory.CreateClient();
-        var response = await client.GetAsync("/render/preview");
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        // MediaTypeHeaderValue splits "text/html; charset=utf-8" into MediaType + CharSet.
-        response.Content.Headers.ContentType?.MediaType.Should().Be("text/html");
-        response.Content.Headers.ContentType?.CharSet.Should().Be("utf-8");
-
-        var html = await response.Content.ReadAsStringAsync();
-        html.Should().NotBeNullOrWhiteSpace();
-        html.Length.Should().BeGreaterThan(1024);
-    }
-
-    [Fact]
+    [SandboxFact]
     public async Task Documents_create_round_trips_against_develop()
     {
-        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("POLI_PAGE_API_KEY")))
-            return;
-
         using var client = _factory.CreateClient();
         var createResponse = await client.PostAsync("/documents", content: null);
 
@@ -90,5 +61,24 @@ public class RenderAgainstDevelopApiTests : IClassFixture<WebApplicationFactory<
         // window anyway — but assert success when it's available so we notice regressions.
         var deleteResponse = await client.DeleteAsync($"/documents/{documentId}");
         deleteResponse.StatusCode.Should().BeOneOf(HttpStatusCode.NoContent, HttpStatusCode.OK);
+    }
+
+    [SandboxFact]
+    public async Task Not_found_demo_answers_404_template_not_found_against_develop()
+    {
+        using var client = _factory.CreateClient();
+        var response = await client.GetAsync("/errors/not-found");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
+
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        payload.RootElement.EnumerateObject().Select(p => p.Name).Should()
+            .Equal("code", "message", "status", "requestId");
+        payload.RootElement.GetProperty("code").GetString().Should().Be("TEMPLATE_NOT_FOUND");
+        payload.RootElement.GetProperty("status").GetInt32().Should().Be(404);
+        payload.RootElement.GetProperty("message").GetString().Should().NotBeNullOrWhiteSpace();
+        // The API sends x-request-id on every answer; ToPayload() carries it.
+        payload.RootElement.GetProperty("requestId").GetString().Should().NotBeNullOrWhiteSpace();
     }
 }

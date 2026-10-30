@@ -8,11 +8,12 @@ Returning a PDF from an ASP.NET Core endpoint correctly means setting four heade
 
 ## Minimal API — `PoliPageResults`
 
-`PoliPage.AspNetCore.PoliPageResults` is a static class with four factories. Each returns an `IResult` you hand back from your endpoint delegate.
+`PoliPage.AspNetCore.Results.PoliPageResults` is a static class with four factories. Each returns an `IResult` you hand back from your endpoint delegate.
 
 ```csharp
 using PoliPage;
 using PoliPage.AspNetCore;
+using PoliPage.AspNetCore.Results;
 
 app.MapGet("/invoices/{id}.pdf", async (
     string id,
@@ -20,11 +21,10 @@ app.MapGet("/invoices/{id}.pdf", async (
     CancellationToken cancellationToken) =>
 {
     var pdf = await client.Render.PdfAsync(
-        new ProjectModeInput
+        new RenderInput
         {
             Project = "invoices",
             Template = "default",
-            Version = "1.0.0",
             Data = new { InvoiceId = id },
         },
         cancellationToken: cancellationToken);
@@ -59,11 +59,10 @@ public class InvoicesController(
     public async Task<IActionResult> Show(string id, CancellationToken cancellationToken)
     {
         var pdf = await client.Render.PdfAsync(
-            new ProjectModeInput
+            new RenderInput
             {
                 Project = "invoices",
                 Template = "default",
-                Version = "1.0.0",
                 Data = new { InvoiceId = id },
             },
             cancellationToken: cancellationToken);
@@ -120,7 +119,7 @@ For the MVC surface, `[ProducesResponseType(StatusCodes.Status200OK, Type = type
 
 - **A bare `FileContentResult` keeps control characters.** `new FileContentResult(pdf, "application/pdf") { FileDownloadName = name }` gets the same RFC 6266 encoding, but CR/LF/TAB survive as `_` and `%0D%0A`. `PoliPageResponseFactory.Pdf(...)` strips them before handing the name to MVC — prefer it when the filename comes from user or template data.
 - **`PoliPageResults.Pdf` buffers the whole byte array** into the response body in one `WriteAsync`. For 10 MB+ documents, prefer `PoliPageResults.PdfStream(client.Render.PdfStreamAsync(...))` — see [streaming.md](streaming.md).
-- **`Preview` returns the HTML verbatim.** The SDK already renders the HTML; this helper does not re-render, re-escape, or sanitize. If you accept user-controlled `Data` and the template echoes it raw, that's a template authoring issue, not a helper issue.
+- **`Preview` returns the HTML verbatim.** Pass it the stored HTML of a rendered document (`Documents.PreviewAsync(id)` → `DocumentPreviewResult.Html`); this helper does not re-render, re-escape, or sanitize. If you accept user-controlled `Data` and the template echoes it raw, that's a template authoring issue, not a helper issue.
 - **`DocumentRedirect`** issues a 302 to a presigned S3 URL with a 15-minute TTL. Don't store the URL in a database or pass it to a job queue — fetch a fresh one with `client.Documents.GetAsync(id)` each time.
 
 ## Related

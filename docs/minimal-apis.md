@@ -11,6 +11,7 @@ ASP.NET Core's Minimal APIs are the default for new projects on `net8.0`+ and th
 ```csharp
 using PoliPage;
 using PoliPage.AspNetCore;
+using PoliPage.AspNetCore.Results;
 
 var render = app.MapGroup("/render")
     .RequireAuthorization("Renderer")
@@ -22,11 +23,10 @@ render.MapGet("/invoices/{id}.pdf", async (
     CancellationToken cancellationToken) =>
 {
     var pdf = await client.Render.PdfAsync(
-        new ProjectModeInput
+        new RenderInput
         {
             Project = "invoices",
             Template = "default",
-            Version = "1.0.0",
             Data = new { InvoiceId = id },
         },
         cancellationToken: cancellationToken);
@@ -42,50 +42,51 @@ Every endpoint in the group inherits the `Renderer` policy and the `PoliPage` Op
 
 ## Strongly-typed request bodies
 
-The SDK's input types are POCOs, so the `[FromBody]` binder accepts them directly. For the inline-HTML mode:
+Bind the caller's body to your own record and map it onto `RenderInput`, so the endpoint decides which project the caller may render. The API key picks the environment, so there is no version to pass:
 
 ```csharp
-public sealed record RenderRequest(string Html, object? Data);
+using System.Text.Json;
+using Microsoft.AspNetCore.Mvc;
+using PoliPage;
+using PoliPage.AspNetCore;
+using PoliPage.AspNetCore.Results;
 
-app.MapPost("/render/custom", async (
+render.MapPost("/custom", async (
     [FromBody] RenderRequest request,
     PoliPageClient client,
     CancellationToken cancellationToken) =>
 {
     var pdf = await client.Render.PdfAsync(
-        new InlineModeInput
+        new RenderInput
         {
-            Template = request.Html,
-            Data = request.Data,
+            Project = "invoices",
+            Template = request.Template,
+            Data = (object?)request.Data ?? new { }, // Data is required: {} when the caller sends none
         },
         cancellationToken: cancellationToken);
 
     return PoliPageResults.Pdf(pdf, "custom.pdf");
 });
+
+// In Program.cs, type declarations go after the top-level statements.
+public sealed record RenderRequest(string Template, JsonElement? Data);
 ```
 
 ## Returning multiple result types
 
-When an endpoint can return either a PDF or a ProblemDetails error, declare a `Results<...>` union so the framework knows which type to expose in OpenAPI:
+When an endpoint can return either content or an error, declare a `Results<...>` union so the framework knows which type to expose in OpenAPI. Here, the stored HTML of a rendered document (`Documents.PreviewAsync`):
 
 ```csharp
 using Microsoft.AspNetCore.Http.HttpResults;
 
-app.MapGet("/render/preview/{templateId}", async Task<Results<ContentHttpResult, NotFound>> (
-    string templateId,
+app.MapGet("/documents/{id}/preview", async Task<Results<ContentHttpResult, NotFound>> (
+    string id,
     PoliPageClient client,
     CancellationToken cancellationToken) =>
 {
     try
     {
-        var preview = await client.Render.PreviewAsync(
-            new ProjectModeInput
-            {
-                Project = "templates",
-                Template = templateId,
-                Version = "1.0.0",
-            },
-            cancellationToken: cancellationToken);
+        var preview = await client.Documents.PreviewAsync(id, cancellationToken: cancellationToken);
 
         return TypedResults.Content(preview.Html, "text/html; charset=utf-8");
     }
@@ -106,16 +107,18 @@ The 200 + `application/pdf` content type is contributed automatically by `PoliPa
 render.MapGet("/invoices/{id}.pdf", /* … */)
     .WithName("DownloadInvoice")
     .WithSummary("Download an invoice as a PDF.")
-    .ProducesProblem(StatusCodes.Status404NotFound)
-    .ProducesProblem(StatusCodes.Status429TooManyRequests);
+    .Produces<PoliPageErrorPayload>(StatusCodes.Status404NotFound, "application/json")
+    .Produces<PoliPageErrorPayload>(StatusCodes.Status429TooManyRequests, "application/json");
 //  ^ no .Produces(...) for the 200 — auto-discovered.
 ```
 
-The exception-handler's ProblemDetails responses match `application/problem+json` exactly, so `ProducesProblem(...)` describes them accurately for the spec consumers. The default content type on `ProducesProblem` is `application/problem+json`; ASP.NET Core's `Microsoft.AspNetCore.Http.ProblemDetailsService` writes the same content type by default.
+The error handler answers a `PoliPageException` with the SDK's `PoliPageErrorPayload` (`{ code, message, status, requestId }`) as `application/json`, so `Produces<PoliPageErrorPayload>(...)` describes those answers accurately for the spec consumers.
 
 ## Rate limiting
 
 ```csharp
+using Microsoft.AspNetCore.RateLimiting;
+
 builder.Services.AddRateLimiter(options =>
 {
     options.AddFixedWindowLimiter("render", limiter =>
@@ -133,21 +136,21 @@ render.RequireRateLimiting("render");
 
 When a caller exceeds the limit, ASP.NET Core returns 429 before the SDK is ever invoked — the SDK's own retry budget never burns on locally-rejected traffic.
 
-## Output caching for previews
+## Output caching for document previews
 
-Preview HTML is deterministic for a given `(project, template, version, data)` tuple. If your `data` is small and shareable across users, output caching saves repeat renders:
+A stored document's preview HTML does not change for a given document id. If the documents are shareable across the users who can reach the endpoint, output caching saves repeat API calls:
 
 ```csharp
 builder.Services.AddOutputCache(options =>
 {
     options.AddPolicy("preview-15m", builder => builder
         .Expire(TimeSpan.FromMinutes(15))
-        .SetVaryByQuery("v", "data"));
+        .SetVaryByRouteValue("id"));
 });
 
 app.UseOutputCache();
 
-render.MapGet("/preview/{templateId}", /* … */)
+app.MapGet("/documents/{id}/preview", /* … */)
     .CacheOutput("preview-15m");
 ```
 

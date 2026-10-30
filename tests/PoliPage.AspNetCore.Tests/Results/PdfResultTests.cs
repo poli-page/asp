@@ -97,7 +97,7 @@ public class PdfResultTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddPoliPageAspNetCore(opts => opts.ApiKey = "pp_test_x", configure);
+        services.AddPoliPageAspNetCore(opts => opts.ApiKey = TestKeys.Sandbox, configure);
         var provider = services.BuildServiceProvider();
 
         var httpContext = new DefaultHttpContext { RequestServices = provider };

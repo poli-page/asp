@@ -9,11 +9,13 @@ namespace PoliPage.AspNetCore;
 public static class ApplicationBuilderExtensions
 {
     /// <summary>
-    /// Adds a fallback middleware that maps <see cref="PoliPageException"/> to RFC 7807
-    /// ProblemDetails for hosts that do not call <c>app.UseExceptionHandler()</c>. .NET 8+
-    /// hosts using <c>UseExceptionHandler()</c> already get the primary
-    /// <see cref="Microsoft.AspNetCore.Diagnostics.IExceptionHandler"/> path and do NOT need
-    /// this call — see CLAUDE.md §10.11 for the "don't enable both" rule.
+    /// Adds, at this point of the pipeline, the middleware that answers a
+    /// <see cref="PoliPageException"/> with <see cref="PoliPageException.ToPayload"/> as
+    /// <c>application/json</c> and its status (500 when the payload has none).
+    /// <c>AddPoliPageAspNetCore</c> already adds this middleware at the start of the pipeline
+    /// unless <see cref="PoliPageAspNetCoreOptions.RegisterExceptionHandler"/> is
+    /// <see langword="false"/>; call this only to place it yourself, for example after
+    /// turning the default off.
     /// </summary>
     /// <param name="app">The application builder.</param>
     /// <returns>The same <see cref="IApplicationBuilder"/> for chaining.</returns>

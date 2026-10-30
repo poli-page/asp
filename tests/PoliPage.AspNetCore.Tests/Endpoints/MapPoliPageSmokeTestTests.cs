@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
+using PoliPage.AspNetCore.Tests.ExceptionHandling;
 using PoliPage.AspNetCore.Tests.Fixtures;
 
 namespace PoliPage.AspNetCore.Tests.Endpoints;
@@ -24,6 +25,21 @@ public class MapPoliPageSmokeTestTests
     }
 
     [Fact]
+    public async Task Smoke_endpoint_renders_getting_started_welcome_without_a_version()
+    {
+        await using var host = await PoliPageTestHost.StartAsync(app =>
+            app.MapPoliPageSmokeTest().AllowAnonymous());
+
+        var response = await host.Client.GetAsync("/poli-page/smoke");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var body = JsonDocument.Parse(host.Stub.LastRenderBody!);
+        body.RootElement.GetProperty("project").GetString().Should().Be("getting-started");
+        body.RootElement.GetProperty("template").GetString().Should().Be("welcome");
+        body.RootElement.TryGetProperty("version", out _).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Smoke_endpoint_maps_PoliPageException_via_exception_handler()
     {
         await using var host = await PoliPageTestHost.StartAsync(app =>
@@ -34,11 +50,10 @@ public class MapPoliPageSmokeTestTests
         var response = await host.Client.GetAsync("/poli-page/smoke");
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-        response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
 
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        doc.RootElement.GetProperty("code").GetString().Should().Be(PoliPageErrorCode.InvalidApiKey);
-        doc.RootElement.GetProperty("poliPageRequestId").GetString().Should().Be("req_x");
+        doc.RootElement.ShouldBePayload(PoliPageErrorCode.InvalidApiKey, "Bad key", 401, "req_x");
     }
 
     [Fact]
@@ -46,11 +61,7 @@ public class MapPoliPageSmokeTestTests
     {
         await using var host = await PoliPageTestHost.StartAsync(
             configureApp: app => app.MapPoliPageSmokeTest().AllowAnonymous(),
-            configureAspNet: opts =>
-            {
-                opts.RegisterExceptionHandler = false;
-                opts.AddProblemDetailsService = true;
-            },
+            configureAspNet: opts => opts.RegisterExceptionHandler = false,
             useFallbackMiddleware: true);
         host.Stub.SetException(
             new PoliPageValidationException(PoliPageErrorCode.ValidationError, 422, "Bad input", requestId: "req_y"));
@@ -58,10 +69,10 @@ public class MapPoliPageSmokeTestTests
         var response = await host.Client.GetAsync("/poli-page/smoke");
 
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-        response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
 
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        doc.RootElement.GetProperty("code").GetString().Should().Be(PoliPageErrorCode.ValidationError);
+        doc.RootElement.ShouldBePayload(PoliPageErrorCode.ValidationError, "Bad input", 422, "req_y");
     }
 
     [Fact]

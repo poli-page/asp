@@ -22,54 +22,48 @@ jobs:
       - uses: actions/checkout@v4
         with: { path: asp }
 
-      - uses: actions/checkout@v4
-        with:
-          repository: poli-page/sdk-csharp
-          path: sdk-csharp
-          ref: main
-
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
             8.0.x
             10.0.x
 
-      - name: Pack sdk-csharp into local source
-        run: dotnet pack sdk-csharp/PoliPage.sln -c Release -o sdk-csharp/artifacts/package/release
+      - name: API contract
+        id: contract
+        uses: poli-page/api-contract@0eba96c1ecf9a28b7e259f444f3ca5b7c059d5fd # v1.3.0
 
       - name: Restore
-        if: hashFiles('asp/PoliPage.AspNetCore.sln') != ''
         run: dotnet restore asp/PoliPage.AspNetCore.sln
 
       - name: Format check
-        if: hashFiles('asp/.editorconfig') != ''
         run: dotnet format asp/PoliPage.AspNetCore.sln --verify-no-changes
 
-      # Build the whole solution without forcing a global -f: example-app and the
-      # integration tests target net10.0 only, so a solution-wide `-f net8.0` would fail
-      # (NETSDK1005). Each project builds its own declared TargetFrameworks; the library
-      # produces both net8.0 and net10.0 outputs needed by Pack.
+      # Build the whole solution without a global -f: every project builds its declared
+      # TargetFrameworks (net8.0;net10.0), which Pack needs from the library.
       - name: Build
-        if: hashFiles('asp/PoliPage.AspNetCore.sln') != ''
         run: dotnet build asp/PoliPage.AspNetCore.sln -c Release --no-restore
 
-      # Exercise the unit tests against the matrix TFM. The unit-test project multi-targets
-      # net8.0;net10.0, so it can be addressed under either leg; the net10.0-only integration
-      # project is excluded here (and by Category!=Integration) so -f net8.0 stays valid.
+      # Unit tests, then the example-app tests: the API contract's impl cases (which fail
+      # when POLI_CONTRACT is missing, since CI is set) and the stub-backed demo test. The
+      # live-API tests are Category=Integration and need a sandbox key, so they are excluded.
       - name: Test
-        if: hashFiles('asp/tests/PoliPage.AspNetCore.Tests/*.csproj') != ''
         # Force bash on every OS: the line-continuation (\) syntax below is not valid in
         # PowerShell, the default shell on windows-latest.
         shell: bash
+        env:
+          POLI_CONTRACT: ${{ steps.contract.outputs.path }}
         run: |
           dotnet test asp/tests/PoliPage.AspNetCore.Tests/PoliPage.AspNetCore.Tests.csproj \
             -c Release --no-build \
             -f ${{ matrix.tfm }} \
             --filter "Category!=Integration" \
             --collect "XPlat Code Coverage"
+          dotnet test asp/tests/PoliPage.AspNetCore.IntegrationTests/PoliPage.AspNetCore.IntegrationTests.csproj \
+            -c Release --no-build \
+            -f ${{ matrix.tfm }} \
+            --filter "Category!=Integration"
 
       # Pack the library only. It multi-targets net8.0;net10.0 and the no-`-f` build above
       # produced both, so NuGet finds every lib/<tfm> asset (no NU5026).
       - name: Pack
-        if: hashFiles('asp/src/**/*.csproj') != ''
         run: dotnet pack asp/src/PoliPage.AspNetCore/PoliPage.AspNetCore.csproj -c Release --no-build

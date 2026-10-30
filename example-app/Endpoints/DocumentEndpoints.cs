@@ -21,11 +21,10 @@ internal static class DocumentEndpoints
     {
         var client = httpContext.RequestServices.GetRequiredService<PoliPageClient>();
         var descriptor = await client.Render.DocumentAsync(
-            new ProjectModeInput
+            new RenderInput
             {
                 Project = "getting-started",
                 Template = "welcome",
-                Version = "1.0.0",
                 Data = new { name = "PoliPage.AspNetCore" },
             },
             cancellationToken: httpContext.RequestAborted);
