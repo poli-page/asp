@@ -1,6 +1,6 @@
 namespace PoliPage.AspNetCore;
 
-// Marker type so the assembly is not empty. Removed once real types land in Task 3.
+// Internal marker type: tests reference it to load this assembly.
 internal static class AssemblyMarker
 {
 }
