@@ -1,10 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <!-- Override the parent's TargetFrameworks (net8.0;net10.0). Example apps target the
-         latest LTS only — running the demo on net8.0 is not interesting. -->
-    <TargetFrameworks>net10.0</TargetFrameworks>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- Same TargetFrameworks as the library (net8.0;net10.0, from Directory.Build.props): the
+         contract tests load this app in-process on both, so each CI leg checks it on its own
+         runtime. `dotnet run` needs `-f net10.0` (or net8.0) to pick one. -->
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>PoliPage.AspNetCore.ExampleApp</RootNamespace>
