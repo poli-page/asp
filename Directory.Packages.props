@@ -3,8 +3,8 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
-    <!-- 0.10.0 is the SDK's environments release (RenderInput, no template versions), from nuget.org. -->
-    <PackageVersion Include="PoliPage" Version="0.10.0" />
+    <!-- 0.11.0: environment API keys, no template versions, the API-contract error payload (ToPayload). -->
+    <PackageVersion Include="PoliPage" Version="0.11.0" />
 
     <!-- Analyzers (match sdk-csharp set) -->
     <PackageVersion Include="Meziantou.Analyzer" Version="2.0.183" />
