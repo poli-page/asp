@@ -23,7 +23,7 @@
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.0.1" />
     <PackageVersion Include="FluentAssertions" Version="7.0.0" />
-    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="coverlet.collector" Version="10.1.0" />
 
     <!-- Per-TFM testing host pins — Mvc.Testing must match the runtime ASP.NET Core major. -->
     <PackageVersion Condition="'$(TargetFramework)' == 'net8.0'"  Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.11" />
