@@ -7,7 +7,7 @@
     <PackageVersion Include="PoliPage" Version="0.11.0" />
 
     <!-- Analyzers (match sdk-csharp set) -->
-    <PackageVersion Include="Meziantou.Analyzer" Version="2.0.183" />
+    <PackageVersion Include="Meziantou.Analyzer" Version="3.0.317" />
     <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="9.0.0" />
     <PackageVersion Include="Roslynator.Analyzers" Version="4.13.1" />
 
