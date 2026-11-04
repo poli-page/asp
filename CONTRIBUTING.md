@@ -53,6 +53,12 @@ dotnet pack -c Release                  # produce .nupkg
 
 CI runs the same commands on `net8.0` + `net10.0` × Ubuntu/Windows + `net10.0` × macOS, with the contract tests.
 
+The Ubuntu / `net10.0` leg also uploads the unit-test coverage (coverlet, Cobertura) to Codecov, and a separate CodeQL workflow scans the C# code on every push and pull request to `main` and weekly.
+
+## Docs site
+
+The documentation site is an Astro Starlight project in `docs/` (the pages are `docs/src/content/docs/**/*.mdx`), published to <https://poli-page.github.io/asp/> by `.github/workflows/docs.yml` on every push to `main` that touches it. `docs/src/preset/` is a vendored copy of the shared Poli Page preset: do not edit it (see its README). The .NET build never reads `docs/`. To build it locally: `cd docs && npm ci && npm run build`. `docs/sdk-surface-audit-2026-06-01.md` is an internal audit, not a site page.
+
 ## Pull requests
 
 - Branch off `main`; open the PR against `main`.
