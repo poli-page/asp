@@ -1,8 +1,9 @@
-# Streaming large PDFs
+---
+title: Streaming large PDFs
+description: Stream a multi-megabyte PDF to the response without buffering it in memory, with PdfStream in Minimal APIs and MVC.
+---
 
-> Stream a multi-megabyte PDF as an `IResult` / `FileStreamResult` without buffering the full document in process memory.
-
-## Why
+Stream a multi-megabyte PDF as an `IResult` / `FileStreamResult` without buffering the full document in process memory.
 
 `PoliPageClient.Render.PdfAsync` returns the PDF as `byte[]` — fine for a one-page invoice, wasteful for a 50-page report or a 10 MB statement. `Render.PdfStreamAsync` returns a `Stream` that reads from the upstream presigned URL on demand. `PoliPageResults.PdfStream(...)` (Minimal API) and `PoliPageResponseFactory.PdfStream(...)` (MVC) adapt that stream to the response body with the correct PDF headers, so bytes flow controller → client without sitting in memory.
 
@@ -72,7 +73,7 @@ public class StatementsController(
 
 ## Inline rendering
 
-Pass `inline: true` to set `Content-Disposition: inline; filename=...` so the browser renders the PDF in-tab instead of triggering a download:
+Pass `inline: true` to `PoliPageResults.PdfStream` to set `Content-Disposition: inline; filename=...` so the browser renders the PDF in-tab instead of triggering a download (on the MVC factory, `inline: true` writes no `Content-Disposition` at all):
 
 ```csharp
 return PoliPageResults.PdfStream(stream, $"statement-{accountId}.pdf", inline: true);
@@ -97,8 +98,41 @@ curl -sS --no-buffer -o statement.pdf -w '%{time_starttransfer}s to first byte\n
 
 For a 10 MB PDF, expect time-to-first-byte to be ~SDK render latency, not ~render latency + transfer time. If TTFB scales with file size, streaming is being buffered somewhere — work back through the middleware chain.
 
-## Related
+## Example
 
-- [responses.md](responses.md) — when to use the buffered `Pdf` instead of `PdfStream`.
-- [minimal-apis.md](minimal-apis.md) — composing streaming endpoints into route groups with rate limiting and auth.
-- [testing.md](testing.md) — `WebApplicationFactory` assertions on `Response.Body` content.
+```csharp
+using PoliPage;
+using PoliPage.AspNetCore;
+using PoliPage.AspNetCore.Results;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddPoliPageAspNetCore(builder.Configuration.GetSection("PoliPage"));
+
+var app = builder.Build();
+
+// The result owns the stream: do not wrap it in a using.
+app.MapGet("/statements/{accountId}.pdf", async (
+    string accountId,
+    PoliPageClient client,
+    CancellationToken cancellationToken) =>
+{
+    var stream = await client.Render.PdfStreamAsync(
+        new RenderInput
+        {
+            Project = "statements",
+            Template = "monthly",
+            Data = new { AccountId = accountId },
+        },
+        cancellationToken: cancellationToken);
+
+    return PoliPageResults.PdfStream(stream, $"statement-{accountId}.pdf", inline: true);
+});
+
+app.Run();
+```
+
+## See also
+
+- [Response helpers](../responses/)
+- [Minimal APIs](../minimal-apis/)
+- [Testing](../../production/testing/)

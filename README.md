@@ -362,10 +362,12 @@ Or drop `POLI_PAGE_API_KEY` (and optionally `POLI_PAGE_BASE_URL`) into a `.env` 
 
 ## Going further
 
-- [`docs/responses.md`](docs/responses.md) — `PoliPageResults` vs `PoliPageResponseFactory`, header reference, RFC 5987 filename encoding.
-- [`docs/minimal-apis.md`](docs/minimal-apis.md) — Minimal API patterns, route groups, `IResult` composition.
-- [`docs/streaming.md`](docs/streaming.md) — streaming multi-megabyte PDFs without buffering, cancellation propagation.
-- [`docs/testing.md`](docs/testing.md) — `WebApplicationFactory<TEntryPoint>`, swapping `PoliPageClient` with a fake via `IServiceCollection.Replace`, xUnit fixtures.
+The full documentation is at <https://poli-page.github.io/asp/>:
+
+- [Response helpers](https://poli-page.github.io/asp/concepts/responses/) — `PoliPageResults` vs `PoliPageResponseFactory`, header reference, RFC 5987 filename encoding.
+- [Minimal APIs](https://poli-page.github.io/asp/concepts/minimal-apis/) — Minimal API patterns, route groups, `IResult` composition.
+- [Streaming](https://poli-page.github.io/asp/concepts/streaming/) — streaming multi-megabyte PDFs without buffering, cancellation propagation.
+- [Testing](https://poli-page.github.io/asp/production/testing/) — `WebApplicationFactory<TEntryPoint>`, swapping `PoliPageClient` with a fake via `IServiceCollection.Replace`, xUnit fixtures.
 
 ## Compatibility
 

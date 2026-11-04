@@ -1,0 +1,18 @@
+---
+title: Poli Page ASP.NET Core integration
+description: Render Poli Page documents from ASP.NET Core Minimal APIs and MVC controllers with PoliPage.AspNetCore.
+template: splash
+hero:
+  tagline: Render Poli Page documents as ASP.NET Core HTTP responses.
+  actions:
+    - { text: Quick start, link: /asp/getting-started/quick-start/, icon: rocket }
+    - { text: API reference, link: /asp/reference/api/, icon: open-book }
+---
+
+import { CardGrid, Card } from '@astrojs/starlight/components';
+
+<CardGrid>
+  <Card title="Quick start" icon="rocket">Register the package and return a PDF from a Minimal API or an MVC controller.</Card>
+  <Card title="Concepts" icon="puzzle">Configuration through appsettings.json, client access through DI, response helpers, Minimal API patterns and streaming.</Card>
+  <Card title="API reference" icon="open-book">Every public member of `PoliPage.AspNetCore`, on one page.</Card>
+</CardGrid>

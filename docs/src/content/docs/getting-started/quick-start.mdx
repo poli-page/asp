@@ -1,0 +1,72 @@
+---
+title: Quick start
+description: Render a PDF from a Minimal API endpoint or an MVC controller and return it with the right headers.
+---
+
+Once `AddPoliPageAspNetCore` is registered, a route injects the `PoliPageClient`, renders a template, and hands the bytes to a response helper. The helper sets the PDF headers, so you return a PDF the same way you return JSON or a view.
+
+## Register the package
+
+Add `builder.Services.AddPoliPageAspNetCore(builder.Configuration.GetSection("PoliPage"))` to `Program.cs`, as [Install](../install/) shows.
+
+## Render from a Minimal API
+
+Inject `PoliPageClient` and the request's `CancellationToken`, render with `client.Render.PdfAsync`, and return `PoliPageResults.Pdf(pdf, filename)`. For a first run with no template of your own, render the `getting-started` project's `welcome` template: every organization has it in `sandbox`.
+
+## Render from an MVC controller
+
+Inject `PoliPageClient` and `PoliPageResponseFactory`, and return `responses.Pdf(pdf, filename)` as an `IActionResult`. Both set `Content-Type: application/pdf` and an RFC 6266 `Content-Disposition` with the filename. `PoliPageResults` also sets `Cache-Control: no-store, private` and `X-Content-Type-Options: nosniff`; on the MVC factory, set those yourself (see [Response helpers](../../concepts/responses/)).
+
+## Example
+
+```csharp
+using Microsoft.AspNetCore.Mvc;
+using PoliPage;
+using PoliPage.AspNetCore;
+using PoliPage.AspNetCore.Results;
+
+// Minimal API
+app.MapGet("/invoices/{id}.pdf", async (
+    string id,
+    PoliPageClient poliPage,
+    CancellationToken cancellationToken) =>
+{
+    var pdf = await poliPage.Render.PdfAsync(
+        new RenderInput
+        {
+            Project = "billing",
+            Template = "invoice",
+            Data = new Dictionary<string, object> { ["invoiceNumber"] = id },
+        },
+        cancellationToken: cancellationToken);
+
+    return PoliPageResults.Pdf(pdf, $"invoice-{id}.pdf");
+});
+
+// MVC controller
+public class InvoicesController(
+    PoliPageClient poliPage,
+    PoliPageResponseFactory responses) : ControllerBase
+{
+    [HttpGet("invoices/{id}.pdf")]
+    public async Task<IActionResult> Show(string id, CancellationToken cancellationToken)
+    {
+        var pdf = await poliPage.Render.PdfAsync(
+            new RenderInput
+            {
+                Project = "billing",
+                Template = "invoice",
+                Data = new Dictionary<string, object> { ["invoiceNumber"] = id },
+            },
+            cancellationToken: cancellationToken);
+
+        return responses.Pdf(pdf, $"invoice-{id}.pdf");
+    }
+}
+```
+
+## See also
+
+- [Client access](../../concepts/client-access/)
+- [Response helpers](../../concepts/responses/)
+- [Errors](../../production/errors/)

@@ -1,0 +1,88 @@
+---
+title: Client access
+description: Reach the PoliPageClient singleton, the MVC response factory and the options through dependency injection in ASP.NET Core.
+---
+
+`AddPoliPageAspNetCore` registers everything through the standard ASP.NET Core container. The Poli Page client is a singleton you inject by type, the MVC response factory is a singleton beside it, and the Minimal API result helpers are static.
+
+## Inject the client
+
+`PoliPage.PoliPageClient` is the SDK's client, registered as a singleton by the SDK's `AddPoliPage`. Inject it into a Minimal API delegate, a controller constructor or any service. It exposes `Render` (`PdfAsync`, `PdfStreamAsync`, `DocumentAsync`), `Documents` (`GetAsync`, `PreviewAsync`, `ThumbnailsAsync`, `DeleteAsync`) and `RenderToFileAsync`. Their signatures and types belong to the SDK: see [SDK](../../reference/sdk/).
+
+The client is built once at host startup. Rotating the API key does not rebuild it: see [Configuration](../configuration/).
+
+## Return the result
+
+For a Minimal API, call the static `PoliPageResults` factories (`Pdf`, `PdfStream`, `Preview`, `DocumentRedirect`). For MVC, inject `PoliPageResponseFactory` and call the same four methods; it returns the matching `IActionResult`. Both are described in [Response helpers](../responses/).
+
+## Resolve it from the request
+
+Code that has an `HttpContext` and no constructor, such as an endpoint written as a `RequestDelegate`, resolves the client from the request's services:
+
+```csharp
+var client = httpContext.RequestServices.GetRequiredService<PoliPageClient>();
+```
+
+`MapPoliPageSmokeTest` does exactly this.
+
+## Read the options
+
+The integration's options are bound as `IOptions<PoliPageAspNetCoreOptions>`, and the SDK's as `IOptions<PoliPageClientOptions>`. See [Configuration](../configuration/) for every key.
+
+## Already registered the SDK
+
+If the app already called the SDK's `services.AddPoliPage(...)`, `AddPoliPageAspNetCore` does not register the SDK a second time. The reverse order, `AddPoliPageAspNetCore` and then `AddPoliPage`, registers it twice. A second `AddPoliPageAspNetCore` call registers nothing.
+
+## Example
+
+```csharp
+using Microsoft.AspNetCore.Mvc;
+using PoliPage;
+using PoliPage.AspNetCore;
+using PoliPage.AspNetCore.Results;
+
+// Minimal API: inject the client, return a static result.
+app.MapGet("/invoices/{id}.pdf", async (
+    string id,
+    PoliPageClient client,
+    CancellationToken cancellationToken) =>
+{
+    var pdf = await client.Render.PdfAsync(
+        new RenderInput
+        {
+            Project = "billing",
+            Template = "invoice",
+            Data = new Dictionary<string, object> { ["invoiceNumber"] = id },
+        },
+        cancellationToken: cancellationToken);
+
+    return PoliPageResults.Pdf(pdf, $"invoice-{id}.pdf");
+});
+
+// MVC: inject the client and the response factory.
+public class ReportsController(
+    PoliPageClient client,
+    PoliPageResponseFactory responses) : ControllerBase
+{
+    [HttpGet("reports/{id}.pdf")]
+    public async Task<IActionResult> Show(string id, CancellationToken cancellationToken)
+    {
+        var pdf = await client.Render.PdfAsync(
+            new RenderInput
+            {
+                Project = "billing",
+                Template = "invoice",
+                Data = new Dictionary<string, object> { ["invoiceNumber"] = id },
+            },
+            cancellationToken: cancellationToken);
+
+        return responses.Pdf(pdf, $"report-{id}.pdf");
+    }
+}
+```
+
+## See also
+
+- [Configuration](../configuration/)
+- [Response helpers](../responses/)
+- [Testing](../../production/testing/)

@@ -1,0 +1,24 @@
+---
+title: SDK
+description: The .NET SDK under PoliPage.AspNetCore, and where its documentation lives.
+---
+
+`PoliPage.AspNetCore` wraps the Poli Page .NET SDK, [`PoliPage`](https://www.nuget.org/packages/PoliPage). The `PoliPageClient` you inject, its `Render` and `Documents` members and the exception types are the SDK's own, so the SDK's documentation covers every method and type they have.
+
+→ **.NET SDK documentation**: https://poli-page.github.io/sdk-csharp/
+
+## Versions
+
+The integration requires the `PoliPage` SDK `[0.13.0,0.14.0)`, the same major.minor as the package itself: both share the major.minor of the Poli Page API.
+
+| `PoliPage.AspNetCore` | `PoliPage` SDK | Poli Page API | .NET | ASP.NET Core |
+| --- | --- | --- | --- | --- |
+| `0.13.x` | `0.13.x` | `0.13` | 8.0 LTS / 10.0 LTS | 8.0 / 10.0 |
+
+It follows .NET's own LTS window. Non-LTS runtimes (9, 11) are best-effort but not in the CI matrix.
+
+## Where to look
+
+- Render input, render methods and stored documents: the SDK's [Quick start](https://poli-page.github.io/sdk-csharp/getting-started/quick-start/) and [Client](https://poli-page.github.io/sdk-csharp/reference/client/) pages.
+- Retries, timeouts and cancellation: the SDK's [Retries and idempotency](https://poli-page.github.io/sdk-csharp/production/retries-and-idempotency/) page.
+- Every error code and exception type: the SDK's [Errors](https://poli-page.github.io/sdk-csharp/production/errors/) page.

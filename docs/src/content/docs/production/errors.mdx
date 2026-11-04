@@ -1,0 +1,107 @@
+---
+title: Errors
+description: How a PoliPageException reaches your clients, the JSON body and status each error carries, and how to turn the handler off.
+---
+
+`AddPoliPageAspNetCore` turns on an error handler by default. Every `PoliPageException` that leaves an endpoint, controller or middleware is answered with the SDK's `ToPayload()` as JSON, so a client reads Poli Page errors the same way whatever the backend.
+
+## The error
+
+The SDK throws `PoliPageException`, or one of its subclasses, for every failure of an API call. `ToPayload()` returns the `PoliPageErrorPayload` the handler writes: `code`, `message`, `status` and `requestId`. `code` is the API's error code verbatim (or the SDK's own code, such as `network_error`). `requestId` is the API's `x-request-id`, the value to quote to Poli Page support.
+
+## What the handler answers
+
+- **Status**: `exception.ToPayload().Status`: the API's status, `503` for `network_error`, `504` for `timeout`, `502` for `invalid_response`, and `500` when the SDK knows no status (for example `aborted` or `io_error`).
+- **Body**: exactly `exception.ToPayload()`, as `application/json`. `status` and `requestId` are `null` when unknown.
+
+```json
+{
+  "code": "TEMPLATE_NOT_FOUND",
+  "message": "Template 'does-not-exist' not found in project 'getting-started'.",
+  "status": 404,
+  "requestId": "req_8f1c2d4e"
+}
+```
+
+A `PoliPageRateLimitException` that carries a `RetryAfter` also sets the `Retry-After` header, in whole seconds. Every Poli Page framework integration answers with this same body.
+
+The SDK's exception types and the statuses they usually carry:
+
+| Exception | Status | Typical `code` |
+|---|---|---|
+| `PoliPageAuthException` | 401 or 403 (the API's status) | `INVALID_API_KEY`, `MISSING_API_KEY`, `FORBIDDEN`, `ORGANIZATION_PAYMENT_GRACE`, `ENVIRONMENT_PROTECTED` |
+| `PoliPageNotFoundException` | 404 | `PROJECT_NOT_FOUND`, `PROJECT_NOT_IN_ENVIRONMENT`, `TEMPLATE_NOT_FOUND`, `DOCUMENT_NOT_FOUND` |
+| `PoliPageGoneException` | 410 | `DOCUMENT_GONE` |
+| `PoliPageValidationException` | 400 or 422 | `VALIDATION_ERROR` |
+| `PoliPageRateLimitException` | 429 | `RATE_LIMIT_EXCEEDED`, `QUOTA_EXCEEDED`, `OVERAGE_CAP_EXCEEDED` |
+| `PoliPageNetworkException` | 503 | `network_error` |
+| `PoliPageDownloadException` | the storage's status; 500 when there was none | `DOWNLOAD_FAILED` |
+| `PoliPageInvalidResponseException` | 502 (the exception's own `StatusCode` keeps the 2xx) | `invalid_response`: a 2xx whose body is not JSON, usually from a proxy |
+| `PoliPageException` | the API's status; 504 for `timeout`; 500 when none, as for `io_error` (`RenderToFileAsync` cannot write the file) | any other code |
+
+## How the handler is registered
+
+The handler works whether or not the app calls `app.UseExceptionHandler()`. `AddPoliPageAspNetCore` registers it three ways, all answering the same: as an `IExceptionHandler` (which `UseExceptionHandler()` runs), as a developer exception page filter (in Development that page answers before any other middleware), and as a middleware at the start of the pipeline (an `IStartupFilter`). Exceptions that are not `PoliPageException` are left to the rest of your pipeline.
+
+Each answered error is logged once (`EventId` 1002, category `PoliPage.AspNetCore.ExceptionHandling.*`) with the exception: `Poli Page error {Code} answered with HTTP {Status} (request id {RequestId}).`, at `Error` for a 5xx answer and `Warning` otherwise. The line carries the code, status and request id, never the API key.
+
+If an exception is thrown after the response has started (a stream that fails mid-copy), the status and headers can no longer change: the handler logs a warning (`EventId` 1001) and lets the exception through.
+
+## Handle errors yourself
+
+To handle `PoliPageException` yourself, set `RegisterExceptionHandler` to `false`, in code or as `"PoliPage": { "AspNetCore": { "RegisterExceptionHandler": false } }` in `appsettings.json`. A `PoliPageException` then reaches your own handling (ASP.NET Core's default is a `500`). To keep the Poli Page answer but choose where it sits in the pipeline, call `app.UsePoliPageExceptionHandler()` at that point.
+
+To answer one error family differently, catch it in the endpoint; everything else still goes to the handler. The explicit `try`/`catch` is only needed when you want a custom response for one error family.
+
+## Example
+
+```csharp
+using PoliPage;
+using PoliPage.AspNetCore;
+using PoliPage.AspNetCore.Results;
+
+// Keep the handler and answer one error family yourself.
+app.MapGet("/invoices/{id}.pdf", async (
+    string id,
+    PoliPageClient poliPage,
+    CancellationToken ct) =>
+{
+    try
+    {
+        var pdf = await poliPage.Render.PdfAsync(
+            new RenderInput
+            {
+                Project = "billing",
+                Template = "invoice",
+                Data = new Dictionary<string, object> { ["invoiceNumber"] = id },
+            },
+            cancellationToken: ct);
+        return PoliPageResults.Pdf(pdf, "invoice.pdf");
+    }
+    catch (PoliPageValidationException ex)
+    {
+        // Validation message useful to surface back to the user.
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["template"] = new[] { ex.Message },
+        });
+    }
+    catch (PoliPageRateLimitException)
+    {
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+});
+```
+
+```csharp
+// Or turn the handler off and handle every PoliPageException yourself.
+builder.Services.AddPoliPageAspNetCore(
+    builder.Configuration.GetSection("PoliPage"),
+    aspnet => aspnet.RegisterExceptionHandler = false);
+```
+
+## See also
+
+- [Configuration](../../concepts/configuration/)
+- [Response helpers](../../concepts/responses/)
+- [Testing](../testing/)

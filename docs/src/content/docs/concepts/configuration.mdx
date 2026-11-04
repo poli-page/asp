@@ -1,0 +1,131 @@
+---
+title: Configuration
+description: Bind the SDK and integration options from appsettings.json, environment variables or code, with every default and validation rule.
+---
+
+`AddPoliPageAspNetCore` reads its settings from `IConfiguration`, from code, or from both. The SDK options sit at the top of the section you pass in, and the integration's own options sit under an `AspNetCore` key inside it.
+
+## Overloads
+
+`AddPoliPageAspNetCore` has three overloads. Pick the one that matches your config source.
+
+1. A callback on `PoliPageClientOptions`, for a pure-code setup with no `IConfiguration` source.
+2. An `IConfiguration` section, the common case: `builder.Configuration.GetSection("PoliPage")`.
+3. A section plus a callback. The binding runs first, then your code override wins. It runs before `builder.Build()`, so it cannot use `app`, and delegates such as `OnRetry` cannot come from `appsettings.json`.
+
+Every overload also takes an optional `Action<PoliPageAspNetCoreOptions>` that overrides the integration's options after the binding.
+
+## Options
+
+| Option | Default | Source | Description |
+|---|---|---|---|
+| `PoliPage:ApiKey` | — (required) | `PoliPageClientOptions` | `pp_{env}_{32 lowercase hex}`; the key selects the environment. Missing or empty fails startup. |
+| `PoliPage:BaseUrl` | `https://api.poli.page` | `PoliPageClientOptions` | API endpoint. Override for staging or self-hosted. |
+| `PoliPage:RequestTimeout` | `00:01:00` | `PoliPageClientOptions` | Per-request timeout (`TimeSpan` format: `"00:00:30"`). |
+| `PoliPage:MaxRetries` | `2` | `PoliPageClientOptions` | Automatic retries on 429 / 5xx. Must be `≥ 0`. |
+| `PoliPage:RetryDelay` | `00:00:00.500` | `PoliPageClientOptions` | Base delay between retries (`TimeSpan`). |
+| `PoliPage:AspNetCore:RegisterExceptionHandler` | `true` | `PoliPageAspNetCoreOptions` | Turns on the error handler that answers a `PoliPageException` with its `ToPayload()` body (see [Errors](../../production/errors/)). `false` turns it off. |
+| `PoliPage:AspNetCore:AddProblemDetailsService` | `true` | `PoliPageAspNetCoreOptions` | Calls `services.AddProblemDetails()`, which a bare `app.UseExceptionHandler()` needs. Poli Page errors do not use it. |
+| `PoliPage:AspNetCore:DefaultCacheControl` | `no-store, private` | `PoliPageAspNetCoreOptions` | Default `Cache-Control` for `PoliPageResults`. `null` omits the header. `PoliPageResponseFactory` (MVC) does not read it. |
+| `PoliPage:AspNetCore:SetNoSniffHeader` | `true` | `PoliPageAspNetCoreOptions` | Adds `X-Content-Type-Options: nosniff` to `PoliPageResults` answers. `PoliPageResponseFactory` (MVC) does not read it. |
+
+Validation runs at host startup via `ValidateOnStart`: a misconfigured app fails on `dotnet run`, not on the first SDK call. It rejects an empty `ApiKey` (`PoliPage: ApiKey is required.`), a negative `MaxRetries` (`PoliPage: MaxRetries must be ≥ 0.`), and a `RetryDelay` or `RequestTimeout` that is zero or negative (`PoliPage: RetryDelay must be > 0.`, `PoliPage: RequestTimeout must be > 0.`).
+
+## API keys and environments
+
+The API is the only authority on keys. At startup the integration only checks that `ApiKey` is present and not empty (startup fails otherwise). A key that does not match `pp_{env}_{32 lowercase hex}` (environment names: lowercase letters, digits and single inner hyphens, starting with a letter, 1 to 20 characters) logs one warning (`EventId` 3001), and the app starts anyway; the API then answers `401 INVALID_API_KEY` (or `401 MISSING_API_KEY` for a value without `pp_`). The warning names the expected format and shows no part of the key, not even the `pp_{env}_` prefix: a mis-pasted secret fragment can look like a valid environment name.
+
+The [Install](../../getting-started/install/) page lists the environments and what each key does.
+
+## Environment variables
+
+Environment variables override `appsettings.json` through the colon-separated path convention. On Linux and macOS, replace `:` with `__`:
+
+```bash
+PoliPage__ApiKey=pp_live_…
+PoliPage__BaseUrl=https://api-eu.poli.page
+```
+
+## Production secrets
+
+The `appsettings.json` block in the example is illustrative: never commit a live API key to source control. In production, source `PoliPage:ApiKey` from one of:
+
+- **Azure Key Vault** + `Azure.Extensions.AspNetCore.Configuration.Secrets`
+- **Azure App Configuration** with feature-flag–style key references
+- **AWS Secrets Manager** + `Kralizek.Extensions.Configuration.AWSSecretsManager`
+- **HashiCorp Vault** + `VaultSharp.Extensions.Configuration`
+- **Kubernetes Secret** mounted as an environment variable
+
+All of these flow through `IConfiguration` automatically: `AddPoliPageAspNetCore(builder.Configuration.GetSection("PoliPage"))` picks up whichever source is registered first.
+
+## Key rotation
+
+`PoliPageClient` is a **singleton** built once at host startup. Rotating `PoliPage:ApiKey` in `appsettings.json` (or in Key Vault behind a sentinel-based reloader) updates `IOptionsMonitor<PoliPageClientOptions>` but does **not** rebuild the running client. Practical rotation paths:
+
+- Blue/green deploy: standard. The new pod boots with the new key; traffic shifts; the old pod drains.
+- `kubectl rollout restart deployment/your-api`: forces a pod restart, picking up the new key.
+
+A live-reload story (subscribe to `IOptionsMonitor.OnChange`, swap the inner client behind a thread-safe accessor) is deferred to a later release: it requires SDK cooperation that does not exist yet.
+
+## Behind a reverse proxy
+
+If your app sits behind nginx, Envoy, an Azure Application Gateway, or an AWS ALB, register the standard ASP.NET Core forwarded-headers middleware first, **before** `app.UseExceptionHandler()`:
+
+```csharp
+using Microsoft.AspNetCore.HttpOverrides;
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost,
+});
+app.UseExceptionHandler();
+```
+
+With forwarded headers in the right order, `Request.Scheme` and `Request.Host` (and every absolute URL built from them) are the public-facing ones the client actually hit, not the internal pod-level ones.
+
+## Example
+
+```csharp
+using PoliPage.AspNetCore;
+
+// 1. Pure code: no IConfiguration source.
+builder.Services.AddPoliPageAspNetCore(opts =>
+{
+    opts.ApiKey = builder.Configuration["POLI_PAGE_API_KEY"]!;
+    opts.MaxRetries = 3;
+});
+```
+
+```csharp
+// 2. Bind from IConfiguration (the common case).
+builder.Services.AddPoliPageAspNetCore(builder.Configuration.GetSection("PoliPage"));
+```
+
+```csharp
+// 3. Both: the binding first, then a code override.
+builder.Services.AddPoliPageAspNetCore(
+    builder.Configuration.GetSection("PoliPage"),
+    configureClient: opts =>
+    {
+        opts.MaxRetries = 5; // wins over PoliPage:MaxRetries
+        opts.OnRetry = e => Console.WriteLine($"PoliPage retry {e.Attempt}");
+    });
+```
+
+```json
+{
+  "PoliPage": {
+    "ApiKey": "pp_sandbox_…",
+    "RequestTimeout": "00:00:30",
+    "MaxRetries": 3,
+    "AspNetCore": {
+      "DefaultCacheControl": "no-store, private"
+    }
+  }
+}
+```
+
+## See also
+
+- [Client access](../client-access/)
+- [API reference](../../reference/api/)
