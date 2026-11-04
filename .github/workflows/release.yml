@@ -1,7 +1,8 @@
 name: Release
 
-# Flow: push a tag `vX.Y.Z` → `build` checks the tag against <Version> and the
-# CHANGELOG, runs every check and packs the library → `publish` waits for manual
+# Flow: push a tag `vX.Y.Z` → `build` checks the tag against <Version>, the
+# CHANGELOG, the pinned API contract and the required PoliPage SDK (same
+# major.minor), runs every check and packs the library → `publish` waits for manual
 # approval on the `nuget-release` environment → on approval it publishes to
 # nuget.org (via Trusted Publishing / OIDC) and creates the GitHub Release. A tag
 # alone therefore builds and tests but never publishes until a maintainer
@@ -52,6 +53,14 @@ jobs:
             8.0.x
             10.0.x
 
+      # The package shares its major.minor with the Poli Page API: a release X.Y.z
+      # must pass the API contract X.Y and require PoliPage [X.Y.0,X.(Y+1).0). The
+      # script reads the contract commit ci.yml pins (release.yml must pin the same),
+      # requires a stable contract tag vX.Y.Z on it with the tag's major.minor, and
+      # checks the PoliPage range MSBuild evaluates for each target framework.
+      - name: Pinned API contract and required SDK match the tag's major.minor
+        run: ./scripts/check-release-versions.sh "${GITHUB_REF_NAME}"
+
       - name: Restore
         run: dotnet restore
 
@@ -66,7 +75,7 @@ jobs:
       # contract suite like CI does.
       - name: API contract
         id: contract
-        uses: poli-page/api-contract@0eba96c1ecf9a28b7e259f444f3ca5b7c059d5fd # v1.3.0
+        uses: poli-page/api-contract@1f705b3ce3e15ff56e2f7b8249c1a2983af2312c # v0.13.0
 
       # Both test projects on net8.0 and net10.0: unit tests, the contract cases and the
       # stub-backed example-app test. The live-API tests (Category=Integration) need a
@@ -84,6 +93,11 @@ jobs:
         run: |
           dotnet pack src/PoliPage.AspNetCore/PoliPage.AspNetCore.csproj \
             --configuration Release --no-build --output ./nupkg
+
+      # What NuGet users get: every dependency group of the packed .nuspec requires
+      # PoliPage [X.Y.0,X.(Y+1).0) of the tag's major.minor.
+      - name: Packed SDK dependency matches the tag's major.minor
+        run: ./scripts/check-release-versions.sh "${GITHUB_REF_NAME}" "./nupkg/PoliPage.AspNetCore.${GITHUB_REF_NAME#v}.nupkg"
 
       # Hand the exact .nupkg to the gated publish job so it pushes
       # the bits that were tested here, byte-for-byte — no rebuild after approval.

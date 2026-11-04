@@ -8,7 +8,7 @@
 
 ## 0.1 Exception class names — 🟡 Yellow
 
-The plan's mapping switch (spec §10.2 / plan Task 12.2) names six exception classes with a constructor signature of `(string message, string? errorCode, string? requestId)`. Reality differs on names, on the ctor shape, **and** on the set of exceptions the integration must map.
+The plan's mapping switch (plan Task 12.2) names six exception classes with a constructor signature of `(string message, string? errorCode, string? requestId)`. Reality differs on names, on the ctor shape, **and** on the set of exceptions the integration must map.
 
 | Plan expected                            | Actual class on `main`                 | HTTP statuses covered | Notes |
 | ---------------------------------------- | -------------------------------------- | --------------------- | ----- |
@@ -77,7 +77,7 @@ The plan's option 0.2(1) (SDK PR to unseal `PoliPageClient` + add `virtual`) is 
 
 For the small subset of end-to-end tests that exercise `WebApplicationFactory<Program>` + a handler that calls the real SDK, inject a stubbed `HttpMessageHandler` via `PoliPageClientOptions.HttpClient` **and** `PoliPageClientOptions.DownloadHttpClient` (both are already public extension points on the SDK options record). A ~20-line `DelegatingHandler` returning canned descriptor JSON + canned PDF bytes is sufficient. This is **not** a WireMock-style SDK retest (which the package's testing rules forbid) — we're driving one known happy-path response so the ASP.NET layer above can be exercised, not asserting on the SDK's retry/timeout/error-classification behaviour.
 
-**Plan amendment required (before Task 13):** rename the `FakePoliPageClient` fixture to `StubPoliPageHttpHandler : DelegatingHandler`, place it under `tests/PoliPage.AspNetCore.Tests/Fixtures/`, and document in Task 13's preamble that it returns a fixed descriptor + PDF body for any incoming request. Spec §14 reads "mocked SDK via `FakePoliPageClient` (~95% of the suite)"; in practice the ratio inverts — ~95% of tests don't touch the SDK at all, and ~5% drive it through the handler stub.
+**Plan amendment required (before Task 13):** rename the `FakePoliPageClient` fixture to `StubPoliPageHttpHandler : DelegatingHandler`, place it under `tests/PoliPage.AspNetCore.Tests/Fixtures/`, and document in Task 13's preamble that it returns a fixed descriptor + PDF body for any incoming request. The plan read "mocked SDK via `FakePoliPageClient` (~95% of the suite)"; in practice the ratio inverts — ~95% of tests don't touch the SDK at all, and ~5% drive it through the handler stub.
 
 ## 0.3 `PoliPageClient.PingAsync` — 🔴 Red
 

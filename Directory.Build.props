@@ -20,7 +20,7 @@
 
   <PropertyGroup>
     <!-- The package version. The release workflow checks that the pushed tag (vX.Y.Z) matches it. -->
-    <Version>0.11.0</Version>
+    <Version>0.13.0</Version>
     <Authors>Poli Page</Authors>
     <Company>Poli Page</Company>
     <Copyright>Copyright (c) 2026 Poli Page</Copyright>
