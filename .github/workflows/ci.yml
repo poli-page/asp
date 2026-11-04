@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  # Required by codecov-action's tokenless (OIDC) upload on public repos:
+  # Codecov rejects plain tokenless uploads on the default (protected)
+  # branch, so OIDC is the way. Mirrors the sdk-csharp setup.
+  id-token: write
+
 jobs:
   test:
     strategy:
@@ -67,3 +74,20 @@ jobs:
       # produced both, so NuGet finds every lib/<tfm> asset (no NU5026).
       - name: Pack
         run: dotnet pack asp/src/PoliPage.AspNetCore/PoliPage.AspNetCore.csproj -c Release --no-build
+
+      # Single canonical upload (Ubuntu / net10.0) so the report isn't
+      # quadruple-counted across the matrix. `use_oidc: true` authenticates
+      # via the GitHub-issued OIDC token instead of a long-lived upload
+      # token. Codecov rejects plain tokenless uploads on the default
+      # branch ("Token required because branch is protected"); OIDC avoids
+      # both that rejection and the secret-rotation overhead.
+      # `working-directory: asp` runs the uploader at the repo root: the
+      # checkout above lands in the `asp` subfolder of the workspace.
+      - name: Upload coverage to Codecov
+        if: matrix.tfm == 'net10.0' && matrix.os == 'ubuntu-latest' && hashFiles('**/coverage.cobertura.xml') != ''
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          working-directory: asp
+          files: '**/coverage.cobertura.xml'
+          fail_ci_if_error: false
+          use_oidc: true
