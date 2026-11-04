@@ -34,13 +34,9 @@ internal static class RenderEndpoints
         IWebHostEnvironment environment,
         CancellationToken cancellationToken)
     {
+        // The SDK creates the missing output/ directory; a path it cannot write throws
+        // io_error, which the default error handler answers 500 with "status": null.
         var path = Path.Combine(environment.ContentRootPath, "output", "welcome.pdf");
-        var directory = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
         await client.RenderToFileAsync(WelcomeInput(), path, cancellationToken: cancellationToken);
 
         var sizeBytes = new FileInfo(path).Length;

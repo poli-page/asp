@@ -4,9 +4,9 @@ All notable changes to `PoliPage.AspNetCore` are documented here. Format follows
 
 ## [Unreleased]
 
-## [0.11.0] - 2026-10-30
+## [0.13.0] - 2026-11-04
 
-First published release, versioned to match the `PoliPage` SDK 0.11.0 it requires. It supersedes the `0.1.0` pre-release, which was never published: the *Changed (breaking)*, *Changed*, *Removed* and *Fixed* entries below describe what changed since that pre-release.
+First release on NuGet. It requires the `PoliPage` SDK 0.13 (`[0.13.0,0.14.0)`) and passes the Poli Page API contract v0.13.0. The package shares its major.minor with the Poli Page API, so its first version is 0.13.0; a 0.11.0 was prepared and never published, and neither was the `0.1.0` pre-release. The *Changed (breaking)*, *Changed*, *Removed* and *Fixed* entries below describe what changed during those lines.
 
 ### Added
 - `services.AddPoliPageAspNetCore(...)` — three overloads (callback / `IConfiguration` section / `IConfiguration` + callback). Composes the SDK's `AddPoliPage(...)` with this package's services; idempotent under both the symmetric "double `AddPoliPageAspNetCore`" call and the "SDK-first, then `AddPoliPageAspNetCore`" call.
@@ -18,21 +18,24 @@ First published release, versioned to match the `PoliPage` SDK 0.11.0 it require
 - Example ASP.NET Core app at `example-app/` covering every public SDK method through Minimal API + MVC endpoints. Interactive single-page dashboard at `/demo.html`. Workspace `.env` loader maps shell-style `POLI_PAGE_*` env vars into the `PoliPage:*` config tree the SDK options bind from.
 - CI matrix: `net8.0` / `net10.0` × Ubuntu/Windows + `net10.0` × macOS (5 cells): format, build, unit and contract tests, pack.
 - Release workflow (`.github/workflows/release.yml`): a `vX.Y.Z` tag checks the version and the CHANGELOG, runs the checks and packs; the `publish` job waits for approval on the `nuget-release` environment, then pushes to nuget.org (Trusted Publishing / OIDC) and creates the GitHub Release.
-- API contract tests: the integration cases (`impl.*`) of the Poli Page API contract run against the example app in CI, on every OS and target framework, from the pinned `poli-page/api-contract` action (v1.3.0). `tests/contract-skip.json` lists the cases allowed to fail (none).
+- API contract tests: the integration cases (`impl.*`) of the Poli Page API contract v0.13.0, including `impl.invalid-response`, run against the example app in CI and in the release workflow, on every OS and target framework, from the pinned `poli-page/api-contract` action. `tests/contract-skip.json` lists the cases allowed to fail (none).
+- Release workflow: the tag's major.minor must be the pinned API contract's (a stable contract tag on the commit `ci.yml` pins, not the comment next to it; `release.yml` must pin the same commit) and the required `PoliPage` SDK's (`[X.Y.0,X.(Y+1).0)` as MSBuild evaluates it for each target framework, and in the packed `.nuspec`), checked by `scripts/check-release-versions.sh`; the error names both versions.
 - Dependabot: GitHub Actions daily (the API contract in its own group, without the cooldown) and NuGet weekly.
 - Startup warning when `ApiKey` does not match `pp_{env}_{32 lowercase hex}` (`EventId` 3001). The host still starts and the API stays the authority on keys; the warning names the expected format and shows no part of the key, not even the `pp_{env}_` prefix. A missing or empty key still fails startup.
 
 ### Changed (breaking)
-- Requires `PoliPage` 0.11.0 (or later), the SDK's first published release with environment API keys: an API key is `pp_{env}_{32 lowercase hex}` and selects the environment (`pp_sandbox_…`, `pp_live_…`, or one created on Pro+ such as `pp_staging_…`); the old test-key prefix is gone. There are no template versions: inputs are `RenderInput` with no `Version`.
-- The error handler answers a `PoliPageException` with the SDK's `ToPayload()` instead of RFC 7807 ProblemDetails: status `ToPayload().Status` (the API's status, `503` for `network_error`, `504` for `timeout`), or `500` when the SDK knows none; body exactly `{ "code", "message", "status", "requestId" }` as `application/json`, with `null` for an unknown status or request id. A rate-limit error also sets `Retry-After`. The same body as every other Poli Page framework integration.
+- Requires the `PoliPage` SDK `[0.13.0,0.14.0)` (`>= 0.13.0` and `< 0.14`). With it, a 2xx from the API whose body is not JSON (usually from a proxy) throws `PoliPageInvalidResponseException`, code `invalid_response` (was a raw `System.Text.Json.JsonException`), which the error handler answers `502`; a `RenderToFileAsync` that cannot write its file throws code `io_error` (was a raw `IOException` or `UnauthorizedAccessException`), answered `500` with `"status": null`; and the PDF download is bounded by `RequestTimeout` (an idle timeout for `PdfStreamAsync` and `RenderToFileAsync`).
+- Environment API keys (since the SDK 0.11): an API key is `pp_{env}_{32 lowercase hex}` and selects the environment (`pp_sandbox_…`, `pp_live_…`, or one created on Pro+ such as `pp_staging_…`); the old test-key prefix is gone. There are no template versions: inputs are `RenderInput` with no `Version`.
+- The error handler answers a `PoliPageException` with the SDK's `ToPayload()` instead of RFC 7807 ProblemDetails: status `ToPayload().Status` (the API's status, `503` for `network_error`, `504` for `timeout`, `502` for `invalid_response`), or `500` when the SDK knows none (as for `aborted` and `io_error`); body exactly `{ "code", "message", "status", "requestId" }` as `application/json`, with `null` for an unknown status or request id. The keys are the SDK's own: the package forwards `ToPayload()` as is and applies no naming policy of its own. A rate-limit error also sets `Retry-After`. The same body as every other Poli Page framework integration.
 - The error handler is on by default whether or not the app calls `app.UseExceptionHandler()`: `AddPoliPageAspNetCore` registers it as an `IExceptionHandler`, as a developer exception page filter, and as a middleware at the start of the pipeline. `PoliPageAspNetCoreOptions.RegisterExceptionHandler = false` (`PoliPage:AspNetCore:RegisterExceptionHandler`) turns it off; `app.UsePoliPageExceptionHandler()` still places the middleware explicitly. Each answered error is logged once (`EventId` 1002: code, HTTP status and request id, with the exception; `Error` for a 5xx answer, `Warning` otherwise).
 - Removed `PoliPageAspNetCoreOptions.ProblemDetailsTypeUri` and `IncludeRequestIdInProblemDetails`, which only shaped the ProblemDetails answer.
 - `MapPoliPageSmokeTest` renders `getting-started/welcome` without a version. The project is published into every organization's `sandbox` environment, so the smoke endpoint works out of the box with a sandbox key.
 - Payment grace is `403 ORGANIZATION_PAYMENT_GRACE`, a `PoliPageAuthException` (the SDK dropped `PoliPagePaymentRequiredException`); `PoliPageGoneException` (410) carries `DOCUMENT_GONE`.
-- `Microsoft.Extensions.Configuration.Binder` 10.0.9 → 10.0.13, matching the `Microsoft.Extensions.*` floor `PoliPage` 0.11.0 brings in (NU1605 otherwise).
+- `Microsoft.Extensions.Configuration.Binder` 10.0.9 → 10.0.14, matching the `Microsoft.Extensions.*` floor `PoliPage` 0.13.0 brings in (NU1605 otherwise).
 - Example app: `GET /errors/not-found` answers through the default error handler: `404` with the `ToPayload()` body (code `TEMPLATE_NOT_FOUND`). The example app now targets `net8.0` and `net10.0`, like the library (`dotnet run -f net10.0`).
 
 ### Changed
+- Example app: `POST /render/file` leaves creating `output/` to `RenderToFileAsync`, so a path it cannot write reaches the error handler as `io_error`.
 - `PoliPageResults.Pdf` / `PdfStream` now build `Content-Disposition` with ASP.NET Core's `ContentDispositionHeaderValue.SetHttpFileName` (the helper MVC's `FileResult` uses), so the Minimal API and MVC surfaces emit the same header: always the dual `filename=…; filename*=UTF-8''…` form, with the ASCII `filename` left unquoted when it is a plain token (`attachment; filename=invoice.pdf; filename*=UTF-8''invoice.pdf`).
 
 ### Removed
@@ -48,9 +51,9 @@ First published release, versioned to match the `PoliPage` SDK 0.11.0 it require
 - `IHealthChecksBuilder.AddPoliPage(...)` — the SDK does not yet expose a cheap `PingAsync` probe, and shipping a probe that renders the full welcome template per poll would burn API quota. Until then, the README documents an `IHttpClientFactory`-based health check probing the smoke endpoint URL.
 
 ### Notes
-- Requires `PoliPage` (the SDK) 0.11.0 or later, referenced via Central Package Management.
+- Requires `PoliPage` (the SDK) 0.13.x, `[0.13.0,0.14.0)`, referenced via Central Package Management.
 - ASP.NET Core 8 (LTS) and 10 (LTS) only. No `netstandard2.0`, no .NET Framework. .NET Framework consumers use the bare `PoliPage` SDK.
 - `<IsAotCompatible>true</IsAotCompatible>` is set on `net10.0`. All logging routes through `[LoggerMessage]` source-gen.
 
-[Unreleased]: https://github.com/poli-page/asp/compare/v0.11.0...HEAD
-[0.11.0]: https://github.com/poli-page/asp/releases/tag/v0.11.0
+[Unreleased]: https://github.com/poli-page/asp/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/poli-page/asp/releases/tag/v0.13.0

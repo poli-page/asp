@@ -27,7 +27,7 @@ This package wraps the Poli Page .NET SDK as an ASP.NET Core-native integration:
 
 - .NET 8.0 (LTS) or .NET 10.0 (LTS)
 - ASP.NET Core 8 or 10
-- The `PoliPage` SDK 0.11.0 or later (installed with this package): environment API keys, no template versions
+- The `PoliPage` SDK 0.13.x (installed with this package): the package requires `[0.13.0,0.14.0)`, `>= 0.13.0` and `< 0.14`
 - A Poli Page API key from [app.poli.page](https://app.poli.page)
 
 ## Install
@@ -40,8 +40,8 @@ Or add the reference directly to your `.csproj`:
 
 ```xml
 <ItemGroup>
-  <!-- Brings in the PoliPage SDK, 0.11.0 or later. -->
-  <PackageReference Include="PoliPage.AspNetCore" Version="0.11.0" />
+  <!-- Brings in the PoliPage SDK 0.13.x. -->
+  <PackageReference Include="PoliPage.AspNetCore" Version="0.13.0" />
 </ItemGroup>
 ```
 
@@ -280,7 +280,7 @@ Full reference: <https://poli-page.github.io/asp/>.
 
 `AddPoliPageAspNetCore` turns on an error handler by default. Every `PoliPageException` that leaves an endpoint, controller or middleware is answered with:
 
-- **Status**: `exception.ToPayload().Status`: the API's status, `503` for `network_error`, `504` for `timeout`, and `500` when the SDK knows no status (for example `aborted`).
+- **Status**: `exception.ToPayload().Status`: the API's status, `503` for `network_error`, `504` for `timeout`, `502` for `invalid_response`, and `500` when the SDK knows no status (for example `aborted` or `io_error`).
 - **Body**: exactly `exception.ToPayload()`, as `application/json`. `status` and `requestId` are `null` when unknown.
 
 ```json
@@ -321,7 +321,8 @@ The SDK's exception types and the statuses they usually carry:
 | `PoliPageRateLimitException` | 429 | `RATE_LIMIT_EXCEEDED`, `QUOTA_EXCEEDED`, `OVERAGE_CAP_EXCEEDED` |
 | `PoliPageNetworkException` | 503 | `network_error` |
 | `PoliPageDownloadException` | the storage's status; 500 when there was none | `DOWNLOAD_FAILED` |
-| `PoliPageException` | the API's status; 504 for `timeout`; 500 when none | any other code |
+| `PoliPageInvalidResponseException` | 502 (the exception's own `StatusCode` keeps the 2xx) | `invalid_response`: a 2xx whose body is not JSON, usually from a proxy |
+| `PoliPageException` | the API's status; 504 for `timeout`; 500 when none, as for `io_error` (`RenderToFileAsync` cannot write the file) | any other code |
 
 To answer one error family differently, catch it in the endpoint; everything else still goes to the handler:
 
@@ -368,11 +369,11 @@ Or drop `POLI_PAGE_API_KEY` (and optionally `POLI_PAGE_BASE_URL`) into a `.env` 
 
 ## Compatibility
 
-| Package | .NET | ASP.NET Core |
-|---|---|---|
-| 0.11.x | 8.0 LTS / 10.0 LTS | 8.0 / 10.0 |
+| Package | `PoliPage` SDK | Poli Page API | .NET | ASP.NET Core |
+|---|---|---|---|---|
+| 0.13.x | 0.13.x | 0.13 | 8.0 LTS / 10.0 LTS | 8.0 / 10.0 |
 
-The package follows .NET's own LTS window. Non-LTS runtimes (9, 11) are best-effort but not in the CI matrix.
+The package shares its major.minor with the Poli Page API and requires the `PoliPage` SDK of the same minor (see [Versions](CONTRIBUTING.md#versions)). It follows .NET's own LTS window. Non-LTS runtimes (9, 11) are best-effort but not in the CI matrix.
 
 ## Contributing
 

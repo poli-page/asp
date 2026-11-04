@@ -21,7 +21,7 @@ public class ErrorHandlerPipelineTests
     };
 
     // Each SDK error shape and the answer the contract fixes for it (policy.implStatusForSdkCode
-    // for network_error and timeout; 500 when the SDK knows no status).
+    // for network_error, timeout and invalid_response; 500 when the SDK knows no status).
     public static TheoryData<string, PoliPageException, int, int?, string?> Errors => new()
     {
         {
@@ -39,6 +39,19 @@ public class ErrorHandlerPipelineTests
             "timeout",
             new PoliPageException(PoliPageErrorCode.Timeout, 0, "Request timed out after 60000ms"),
             504, 504, null
+        },
+        {
+            // A 2xx whose body is not JSON: the exception keeps the real 200, the answer is 502.
+            "invalid_response",
+            new PoliPageInvalidResponseException(PoliPageErrorCode.InvalidResponse, 200,
+                "Invalid response: HTTP 200 body is not JSON", requestId: "req_proxy"),
+            502, 502, "req_proxy"
+        },
+        {
+            "io_error",
+            new PoliPageException(PoliPageErrorCode.IoError, 0, "Failed to write PDF: disk full",
+                innerException: new IOException("disk full")),
+            500, null, null
         },
         {
             "no status",
