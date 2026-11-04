@@ -1,5 +1,5 @@
 ---
-title: Response helpers
+title: Responses
 description: "PoliPageResults for Minimal APIs and PoliPageResponseFactory for MVC: two surfaces, one set of PDF, preview and redirect headers."
 ---
 
@@ -24,8 +24,8 @@ app.MapGet("/invoices/{id}.pdf", async (
     var pdf = await client.Render.PdfAsync(
         new RenderInput
         {
-            Project = "invoices",
-            Template = "default",
+            Project = "billing",
+            Template = "invoice",
             Data = new { InvoiceId = id },
         },
         cancellationToken: cancellationToken);
@@ -62,8 +62,8 @@ public class InvoicesController(
         var pdf = await client.Render.PdfAsync(
             new RenderInput
             {
-                Project = "invoices",
-                Template = "default",
+                Project = "billing",
+                Template = "invoice",
                 Data = new { InvoiceId = id },
             },
             cancellationToken: cancellationToken);

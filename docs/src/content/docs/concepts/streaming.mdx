@@ -9,26 +9,28 @@ Stream a multi-megabyte PDF as an `IResult` / `FileStreamResult` without bufferi
 
 ## How — Minimal API
 
+The samples use the `billing` / `invoice` pair; picture a very large invoice, such as a quarterly statement with thousands of lines.
+
 ```csharp
 using PoliPage;
 using PoliPage.AspNetCore;
 using PoliPage.AspNetCore.Results;
 
-app.MapGet("/statements/{accountId}.pdf", async (
-    string accountId,
+app.MapGet("/invoices/{id}.pdf", async (
+    string id,
     PoliPageClient client,
     CancellationToken cancellationToken) =>
 {
     var stream = await client.Render.PdfStreamAsync(
         new RenderInput
         {
-            Project = "statements",
-            Template = "monthly",
-            Data = new { AccountId = accountId },
+            Project = "billing",
+            Template = "invoice",
+            Data = new { InvoiceId = id },
         },
         cancellationToken: cancellationToken);
 
-    return PoliPageResults.PdfStream(stream, $"statement-{accountId}.pdf");
+    return PoliPageResults.PdfStream(stream, $"invoice-{id}.pdf");
 });
 ```
 
@@ -48,23 +50,23 @@ using Microsoft.AspNetCore.Mvc;
 using PoliPage;
 using PoliPage.AspNetCore;
 
-public class StatementsController(
+public class InvoicesController(
     PoliPageClient client,
     PoliPageResponseFactory responses) : ControllerBase
 {
-    [HttpGet("statements/{accountId}.pdf")]
-    public async Task<IActionResult> Show(string accountId, CancellationToken cancellationToken)
+    [HttpGet("invoices/{id}.pdf")]
+    public async Task<IActionResult> Show(string id, CancellationToken cancellationToken)
     {
         var stream = await client.Render.PdfStreamAsync(
             new RenderInput
             {
-                Project = "statements",
-                Template = "monthly",
-                Data = new { AccountId = accountId },
+                Project = "billing",
+                Template = "invoice",
+                Data = new { InvoiceId = id },
             },
             cancellationToken: cancellationToken);
 
-        return responses.PdfStream(stream, $"statement-{accountId}.pdf");
+        return responses.PdfStream(stream, $"invoice-{id}.pdf");
     }
 }
 ```
@@ -76,7 +78,7 @@ public class StatementsController(
 Pass `inline: true` to `PoliPageResults.PdfStream` to set `Content-Disposition: inline; filename=...` so the browser renders the PDF in-tab instead of triggering a download (on the MVC factory, `inline: true` writes no `Content-Disposition` at all):
 
 ```csharp
-return PoliPageResults.PdfStream(stream, $"statement-{accountId}.pdf", inline: true);
+return PoliPageResults.PdfStream(stream, $"invoice-{id}.pdf", inline: true);
 ```
 
 ## Gotchas
@@ -87,13 +89,13 @@ return PoliPageResults.PdfStream(stream, $"statement-{accountId}.pdf", inline: t
 - **The presigned URL has a 15-minute TTL.** For very large documents over slow client connections, the upstream connection can close mid-stream. Cap aggressive per-request timeouts via `PoliPage:RequestTimeout` rather than letting the SDK's default ride for an hour.
 - **`Content-Length` is omitted when the upstream stream's size is unknown** (which is the common case — chunked transfer from S3). Browsers show an indeterminate progress bar. That is correct behaviour; do not guess a size.
 - **Do not `using var stream = await client.Render.PdfStreamAsync(...)`.** The result owns the stream and disposes it after the body copy. Wrapping in `using` disposes before the copy, producing `ObjectDisposedException`.
-- **`MapPoliPageSmokeTest` is not the right surface to validate streaming.** It uses `Render.PdfAsync` (buffered) for predictable, small payloads — that's intentional. Use `curl --no-buffer https://your-app/statements/.../pdf` to exercise the stream path.
+- **`MapPoliPageSmokeTest` is not the right surface to validate streaming.** It uses `Render.PdfAsync` (buffered) for predictable, small payloads — that's intentional. Use `curl --no-buffer https://your-app/invoices/.../pdf` to exercise the stream path.
 
 ## Verifying with curl
 
 ```bash
-curl -sS --no-buffer -o statement.pdf -w '%{time_starttransfer}s to first byte\n' \
-    https://your-app/statements/ACCT-42.pdf
+curl -sS --no-buffer -o invoice.pdf -w '%{time_starttransfer}s to first byte\n' \
+    https://your-app/invoices/INV-42.pdf
 ```
 
 For a 10 MB PDF, expect time-to-first-byte to be ~SDK render latency, not ~render latency + transfer time. If TTFB scales with file size, streaming is being buffered somewhere — work back through the middleware chain.
@@ -111,21 +113,21 @@ builder.Services.AddPoliPageAspNetCore(builder.Configuration.GetSection("PoliPag
 var app = builder.Build();
 
 // The result owns the stream: do not wrap it in a using.
-app.MapGet("/statements/{accountId}.pdf", async (
-    string accountId,
+app.MapGet("/invoices/{id}.pdf", async (
+    string id,
     PoliPageClient client,
     CancellationToken cancellationToken) =>
 {
     var stream = await client.Render.PdfStreamAsync(
         new RenderInput
         {
-            Project = "statements",
-            Template = "monthly",
-            Data = new { AccountId = accountId },
+            Project = "billing",
+            Template = "invoice",
+            Data = new { InvoiceId = id },
         },
         cancellationToken: cancellationToken);
 
-    return PoliPageResults.PdfStream(stream, $"statement-{accountId}.pdf", inline: true);
+    return PoliPageResults.PdfStream(stream, $"invoice-{id}.pdf", inline: true);
 });
 
 app.Run();
