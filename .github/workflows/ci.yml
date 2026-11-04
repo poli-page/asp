@@ -8,13 +8,15 @@ on:
 
 permissions:
   contents: read
-  # Required by codecov-action's tokenless (OIDC) upload on public repos:
-  # Codecov rejects plain tokenless uploads on the default (protected)
-  # branch, so OIDC is the way. Mirrors the sdk-csharp setup.
-  id-token: write
 
 jobs:
   test:
+    # Required by codecov-action's tokenless (OIDC) upload on public repos:
+    # Codecov rejects plain tokenless uploads on the default (protected)
+    # branch, so OIDC is the way. Mirrors the sdk-csharp setup.
+    permissions:
+      contents: read
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
