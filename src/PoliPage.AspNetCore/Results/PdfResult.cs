@@ -25,11 +25,7 @@ internal sealed class PdfResult(byte[] pdf, string? filename, bool inline)
             httpContext.Response.Headers.ContentDisposition =
                 ContentDispositionHeader.Build(filename, inline);
 
-        if (options.DefaultCacheControl is not null)
-            httpContext.Response.Headers.CacheControl = options.DefaultCacheControl;
-
-        if (options.SetNoSniffHeader)
-            httpContext.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        PoliPageResponseHeaders.Apply(httpContext.Response, options);
 
         await httpContext.Response.Body.WriteAsync(pdf, httpContext.RequestAborted).ConfigureAwait(false);
     }
