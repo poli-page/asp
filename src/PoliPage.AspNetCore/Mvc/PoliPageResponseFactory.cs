@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -17,6 +18,7 @@ namespace PoliPage.AspNetCore;
 /// <see cref="FileResult.FileDownloadName"/> (RFC 6266 dual form, non-ASCII safe). Control
 /// characters are stripped from the filename before it is handed to MVC.
 /// </remarks>
+[SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Public instance API resolved through DI; making these static would break every consumer that calls them on the injected factory.")]
 public sealed class PoliPageResponseFactory
 {
     private readonly PoliPageAspNetCoreOptions _options;
