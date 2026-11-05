@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using PoliPage.AspNetCore.Internal;
 
 namespace PoliPage.AspNetCore.Results;
 
@@ -20,11 +21,7 @@ internal sealed class HtmlPreviewResult(string html) : IResult, IEndpointMetadat
 
         httpContext.Response.ContentType = "text/html; charset=utf-8";
 
-        if (options.DefaultCacheControl is not null)
-            httpContext.Response.Headers.CacheControl = options.DefaultCacheControl;
-
-        if (options.SetNoSniffHeader)
-            httpContext.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        PoliPageResponseHeaders.Apply(httpContext.Response, options);
 
         await httpContext.Response.WriteAsync(html, httpContext.RequestAborted).ConfigureAwait(false);
     }

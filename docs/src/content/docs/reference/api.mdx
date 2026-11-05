@@ -72,10 +72,10 @@ ContentResult Preview(string html);
 RedirectResult DocumentRedirect(string presignedUrl);
 ```
 
-- `Pdf` and `PdfStream` return MVC file results with `application/pdf`. `filename` becomes `FileDownloadName` after control characters are stripped. `inline: true` clears it, so no `Content-Disposition` is written.
+- `Pdf` and `PdfStream` return MVC file results with `application/pdf`. `filename` becomes `FileDownloadName` after control characters are stripped. With `inline: true`, `FileDownloadName` stays empty and the result writes `Content-Disposition: inline` with the filename instead.
 - `Preview` returns a `ContentResult` with `text/html; charset=utf-8` and status 200.
 - `DocumentRedirect` returns a non-permanent `RedirectResult` (302). A null, empty or whitespace URL throws `ArgumentException`.
-- It does not set `Cache-Control` or `X-Content-Type-Options`; see [Response helpers](../../concepts/responses/).
+- `Pdf`, `PdfStream` and `Preview` write `Cache-Control` from `DefaultCacheControl` and `X-Content-Type-Options: nosniff` when `SetNoSniffHeader` is on, like `PoliPageResults`; see [Response helpers](../../concepts/responses/).
 
 ## UsePoliPageExceptionHandler
 

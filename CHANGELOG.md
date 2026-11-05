@@ -8,6 +8,10 @@ All notable changes to `PoliPage.AspNetCore` are documented here. Format follows
 - Documentation site at <https://poli-page.github.io/asp/> (Astro Starlight, in `docs/`): install, quick start, configuration, client access, response helpers, Minimal API patterns, streaming, errors, observability, testing, API reference and migration. It replaces `docs/minimal-apis.md`, `docs/responses.md`, `docs/streaming.md` and `docs/testing.md`.
 - CodeQL workflow, and test coverage uploaded to Codecov from the Ubuntu / `net10.0` CI leg.
 
+### Fixed
+- `PoliPageResponseFactory` (MVC) now writes `Cache-Control` from `DefaultCacheControl` and `X-Content-Type-Options: nosniff` when `SetNoSniffHeader` is on, on `Pdf`, `PdfStream` and `Preview`, as `PoliPageResults` does. It ignored both options before, so MVC answers carried neither header unless the action set them.
+- `PoliPageResponseFactory.Pdf` / `PdfStream` with `inline: true` and a filename now write `Content-Disposition: inline; filename=...`, as `PoliPageResults` does. They wrote no `Content-Disposition` before.
+
 ## [0.13.0] - 2026-11-04
 
 First release on NuGet. It requires the `PoliPage` SDK 0.13 (`[0.13.0,0.14.0)`) and passes the Poli Page API contract v0.13.0. The package shares its major.minor with the Poli Page API, so its first version is 0.13.0; a 0.11.0 was prepared and never published, and neither was the `0.1.0` pre-release. The *Changed (breaking)*, *Changed*, *Removed* and *Fixed* entries below describe what changed during those lines.

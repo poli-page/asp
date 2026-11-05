@@ -5,7 +5,7 @@ description: "PoliPageResults for Minimal APIs and PoliPageResponseFactory for M
 
 `PoliPageResults` (Minimal API `IResult`) and `PoliPageResponseFactory` (MVC `IActionResult`) — two surfaces, one call shape.
 
-Returning a PDF from an ASP.NET Core endpoint correctly means setting four headers consistently: `Content-Type: application/pdf`, an RFC 5987-encoded `Content-Disposition` (so non-ASCII filenames survive Unicode-hostile browsers), `Cache-Control: no-store, private` (so proxies and SWs don't cache an authenticated render), and `X-Content-Type-Options: nosniff` (so a misclassified upload can't hijack the MIME type). `PoliPageResults` sets all four for you. `PoliPageResponseFactory` sets `Content-Type` and `Content-Disposition` through MVC's own file results and leaves the two security headers to you (see [Headers each helper sets](#headers-each-helper-sets)). Both keep the Minimal API and MVC code paths visually identical so you can grep for either.
+Returning a PDF from an ASP.NET Core endpoint correctly means setting four headers consistently: `Content-Type: application/pdf`, an RFC 5987-encoded `Content-Disposition` (so non-ASCII filenames survive Unicode-hostile browsers), `Cache-Control: no-store, private` (so proxies and SWs don't cache an authenticated render), and `X-Content-Type-Options: nosniff` (so a misclassified upload can't hijack the MIME type). `PoliPageResults` and `PoliPageResponseFactory` set all four for you (see [Headers each helper sets](#headers-each-helper-sets)). Both keep the Minimal API and MVC code paths visually identical so you can grep for either.
 
 ## Minimal API — `PoliPageResults`
 
@@ -80,7 +80,8 @@ public class InvoicesController(
 | `Preview(string html)` | `ContentResult` (`text/html; charset=utf-8`) |
 | `DocumentRedirect(string presignedUrl)` | `RedirectResult` |
 
-On the MVC factory, `inline: true` clears the download name, so MVC writes no `Content-Disposition` and the browser renders the PDF in place. Without a `filename`, no `Content-Disposition` is written either.
+`inline: true` writes `Content-Disposition: inline` with the filename, as on `PoliPageResults`, and leaves `FileDownloadName` empty (MVC would write `attachment` from it). Without a `filename`, no `Content-Disposition` is written.
+
 ## Headers each helper sets
 
 | Helper | Content-Type | Content-Disposition | Cache-Control | X-Content-Type-Options |
@@ -88,11 +89,11 @@ On the MVC factory, `inline: true` clears the download name, so MVC writes no `C
 | `PoliPageResults.Pdf` / `PdfStream` | `application/pdf` | `attachment; filename="..."; filename*=UTF-8''...` when filename set | `DefaultCacheControl` value | `nosniff` when `SetNoSniffHeader` |
 | `PoliPageResults.Preview` | `text/html; charset=utf-8` | — | `DefaultCacheControl` value | `nosniff` when `SetNoSniffHeader` |
 | `PoliPageResults.DocumentRedirect` | — (302 with `Location`) | — | — | — |
-| `PoliPageResponseFactory.Pdf` / `PdfStream` | `application/pdf` | from MVC's `FileDownloadName`, when filename set and not inline | — | — |
-| `PoliPageResponseFactory.Preview` | `text/html; charset=utf-8` | — | — | — |
+| `PoliPageResponseFactory.Pdf` / `PdfStream` | `application/pdf` | `attachment` (MVC's `FileDownloadName`) or `inline` when filename set | `DefaultCacheControl` value | `nosniff` when `SetNoSniffHeader` |
+| `PoliPageResponseFactory.Preview` | `text/html; charset=utf-8` | — | `DefaultCacheControl` value | `nosniff` when `SetNoSniffHeader` |
 | `PoliPageResponseFactory.DocumentRedirect` | — (302 redirect) | — | — | — |
 
-The cache header and nosniff defaults come from `PoliPageAspNetCoreOptions` and apply to `PoliPageResults` only: the MVC factory does not read them. For an MVC action, set `Cache-Control` and `X-Content-Type-Options` yourself (a `[ResponseCache(NoStore = true)]` attribute, or a header written in the action) when the render is authenticated. Set `DefaultCacheControl = null` to drop the cache header entirely from `PoliPageResults` on a per-app basis (e.g., if you front the app with a CDN that decides cache policy).
+The cache header and nosniff defaults come from `PoliPageAspNetCoreOptions` and apply to both surfaces. Each helper writes them when the result runs, so they replace a `Cache-Control` set earlier in the action or by a `[ResponseCache]` attribute. Set `DefaultCacheControl = null` to drop the cache header entirely on a per-app basis (e.g., if you front the app with a CDN that decides cache policy).
 
 ## Filename encoding
 

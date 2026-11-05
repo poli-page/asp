@@ -29,11 +29,7 @@ internal sealed class PdfStreamResult(Stream pdfStream, string? filename, bool i
             httpContext.Response.Headers.ContentDisposition =
                 ContentDispositionHeader.Build(filename, inline);
 
-        if (options.DefaultCacheControl is not null)
-            httpContext.Response.Headers.CacheControl = options.DefaultCacheControl;
-
-        if (options.SetNoSniffHeader)
-            httpContext.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        PoliPageResponseHeaders.Apply(httpContext.Response, options);
 
         await pdfStream.CopyToAsync(httpContext.Response.Body, httpContext.RequestAborted).ConfigureAwait(false);
     }
