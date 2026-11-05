@@ -1,11 +1,19 @@
 # Poli Page for ASP.NET Core
 
+[![Nuget](https://img.shields.io/nuget/v/PoliPage.AspNetCore?style=flat&logo=dotnet&logoColor=ffffff&label=Nuget)](https://www.nuget.org/packages/PoliPage.AspNetCore)
+[![Downloads](https://img.shields.io/nuget/dt/PoliPage.AspNetCore?style=flat&logo=dotnet&logoColor=ffffff&label=Downloads)](https://www.nuget.org/packages/PoliPage.AspNetCore)
+[![Ci](https://img.shields.io/github/actions/workflow/status/poli-page/asp/ci.yml?branch=main&style=flat&logo=githubactions&logoColor=ffffff&label=Ci)](https://github.com/poli-page/asp/actions/workflows/ci.yml)
+[![Codeql](https://img.shields.io/github/actions/workflow/status/poli-page/asp/codeql.yml?branch=main&style=flat&logo=github&logoColor=ffffff&label=Codeql)](https://github.com/poli-page/asp/actions/workflows/codeql.yml)
+[![Coverage](https://img.shields.io/codecov/c/github/poli-page/asp?style=flat&logo=codecov&logoColor=ffffff&label=Coverage)](https://codecov.io/github/poli-page/asp)
+[![.Net](https://img.shields.io/badge/.Net-8.0%20%7C%2010.0-blue?style=flat&logo=dotnet&logoColor=ffffff)](https://dotnet.microsoft.com/)
+[![Asp.net core](https://img.shields.io/badge/Asp.net%20core-8.0%20%7C%2010.0-blue?style=flat&logo=dotnet&logoColor=ffffff)](https://dotnet.microsoft.com/apps/aspnet)
+[![Deps](https://img.shields.io/badge/Deps-up%20to%20date-brightgreen?style=flat&logo=dotnet&logoColor=ffffff)](https://github.com/poli-page/asp/network/dependencies)
+[![Docs](https://img.shields.io/badge/Docs-online-brightgreen?style=flat&logo=readthedocs&logoColor=ffffff)](https://poli-page.github.io/asp/)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=flat&logo=gnu&logoColor=ffffff)](LICENSE)
+
 > Render Poli Page documents as ASP.NET Core HTTP responses.
 
-[![CI](https://github.com/poli-page/asp/actions/workflows/ci.yml/badge.svg)](https://github.com/poli-page/asp/actions/workflows/ci.yml)
-[![NuGet](https://img.shields.io/nuget/v/PoliPage.AspNetCore.svg)](https://www.nuget.org/packages/PoliPage.AspNetCore)
-[![NuGet downloads](https://img.shields.io/nuget/dt/PoliPage.AspNetCore.svg)](https://www.nuget.org/packages/PoliPage.AspNetCore)
-[![License](https://img.shields.io/github/license/poli-page/asp)](LICENSE)
+→ **Documentation**: https://poli-page.github.io/asp/
 
 ## About
 
@@ -362,10 +370,12 @@ Or drop `POLI_PAGE_API_KEY` (and optionally `POLI_PAGE_BASE_URL`) into a `.env` 
 
 ## Going further
 
-- [`docs/responses.md`](docs/responses.md) — `PoliPageResults` vs `PoliPageResponseFactory`, header reference, RFC 5987 filename encoding.
-- [`docs/minimal-apis.md`](docs/minimal-apis.md) — Minimal API patterns, route groups, `IResult` composition.
-- [`docs/streaming.md`](docs/streaming.md) — streaming multi-megabyte PDFs without buffering, cancellation propagation.
-- [`docs/testing.md`](docs/testing.md) — `WebApplicationFactory<TEntryPoint>`, swapping `PoliPageClient` with a fake via `IServiceCollection.Replace`, xUnit fixtures.
+The full documentation is at <https://poli-page.github.io/asp/>:
+
+- [Response helpers](https://poli-page.github.io/asp/concepts/responses/) — `PoliPageResults` vs `PoliPageResponseFactory`, header reference, RFC 5987 filename encoding.
+- [Minimal APIs](https://poli-page.github.io/asp/concepts/minimal-apis/) — Minimal API patterns, route groups, `IResult` composition.
+- [Streaming](https://poli-page.github.io/asp/concepts/streaming/) — streaming multi-megabyte PDFs without buffering, cancellation propagation.
+- [Testing](https://poli-page.github.io/asp/production/testing/) — `WebApplicationFactory<TEntryPoint>`, swapping `PoliPageClient` with a fake via `IServiceCollection.Replace`, xUnit fixtures.
 
 ## Compatibility
 

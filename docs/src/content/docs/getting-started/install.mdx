@@ -1,0 +1,83 @@
+---
+title: Install
+description: Install PoliPage.AspNetCore from NuGet, set your API key and register AddPoliPageAspNetCore in Program.cs.
+---
+
+The ASP.NET Core integration ships as the `PoliPage.AspNetCore` package on NuGet. It wraps the Poli Page .NET SDK, `PoliPage`, which NuGet installs with it, so you add one package and register it once in `Program.cs`.
+
+## Requirements
+
+- .NET 8.0 (LTS) or .NET 10.0 (LTS)
+- ASP.NET Core 8 or 10
+- The `PoliPage` SDK 0.13.x, installed with this package: the package requires `[0.13.0,0.14.0)`, which NuGet reads as `>= 0.13.0` and `< 0.14`
+- A Poli Page API key, from [app.poli.page](https://app.poli.page)
+
+CI tests `net8.0` and `net10.0` on Ubuntu and Windows, and `net10.0` on macOS. Non-LTS runtimes (9, 11) are best-effort and not in the matrix.
+
+## Install the package
+
+```bash
+dotnet add package PoliPage.AspNetCore
+```
+
+Or add the reference to your `.csproj`:
+
+```xml
+<ItemGroup>
+  <!-- Brings in the PoliPage SDK 0.13.x. -->
+  <PackageReference Include="PoliPage.AspNetCore" Version="0.13.0" />
+</ItemGroup>
+```
+
+## Set your API key
+
+Put the key in `appsettings.json`, or in an environment variable (see [Configuration](../../concepts/configuration/)):
+
+```json
+{
+  "PoliPage": {
+    "ApiKey": "pp_sandbox_your_key_here"
+  }
+}
+```
+
+A key is `pp_{env}_{32 lowercase hex}`, where `{env}` is the environment it belongs to. The key alone selects the environment, so a render never names a version:
+
+| Environment | Key | Watermark | Counted |
+| --- | --- | --- | --- |
+| `sandbox` (every org) | `pp_sandbox_…` | yes | no |
+| `live` (every org, deletable on Pro+) | `pp_live_…` | no | yes |
+| created on Pro+ (e.g. `staging`) | `pp_staging_…` | no | yes |
+
+"Counted" means the render counts toward the organization's monthly PDF quota. Never commit a live key: in production, source `PoliPage:ApiKey` from a secret store (see [Configuration](../../concepts/configuration/)).
+
+## Register the package
+
+`AddPoliPageAspNetCore` composes the SDK's `AddPoliPage(...)` with this package's services: the `PoliPageClient` singleton, the `PoliPageResponseFactory` for MVC, and the error handler. It also calls `services.AddProblemDetails()`, which a bare `app.UseExceptionHandler()` needs for your other exceptions (turn it off with `AddProblemDetailsService = false`).
+
+To check the wiring after a deployment, map the smoke endpoint with `app.MapPoliPageSmokeTest()`. It renders the `getting-started/welcome` template, which every organization has in its `sandbox` environment, and answers the PDF. Gate it with `.RequireAuthorization(...)` or `.AllowAnonymous()`: every call burns one render against your quota, and the package logs a warning at startup when you do neither.
+
+## Example
+
+```csharp
+using PoliPage.AspNetCore;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddPoliPageAspNetCore(builder.Configuration.GetSection("PoliPage"));
+
+var app = builder.Build();
+
+app.UseExceptionHandler();           // for your other exceptions; Poli Page errors don't need it
+app.UseStatusCodePages();            // optional but recommended for 4xx without a body
+
+app.MapPoliPageSmokeTest()
+   .RequireAuthorization("Operator"); // or .AllowAnonymous()
+
+app.Run();
+```
+
+## See also
+
+- [Quick start](../quick-start/)
+- [Configuration](../../concepts/configuration/)

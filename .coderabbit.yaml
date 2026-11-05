@@ -53,6 +53,8 @@ reviews:
     - "!**/artifacts/**"
     - "!**/*.nupkg"
     - "!**/*.snupkg"
+    - "!docs/src/preset/**"
+    - "!docs/package-lock.json"
   path_instructions:
     - path: "src/PoliPage.AspNetCore/**"
       instructions: >-
@@ -70,10 +72,10 @@ reviews:
       instructions: >-
         Sample code that customers copy: it must be correct, idiomatic ASP.NET Core (Minimal APIs and
         MVC), and must never contain real secrets. API keys come from configuration or environment
-        variables, never hard-coded. Keep it consistent with the README and docs/*.md.
+        variables, never hard-coded. Keep it consistent with the README and the docs site (docs/src/content/docs/**/*.mdx).
     - path: "**/*.md"
       instructions: >-
-        Code samples in README, docs/ and MIGRATION.md must compile against the current public API and
+        Code samples in README, the docs site (docs/src/content/docs) and MIGRATION.md must compile against the current public API and
         match the example-app; CHANGELOG.md must record user-visible changes.
 knowledge_base:
   code_guidelines:

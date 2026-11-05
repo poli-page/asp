@@ -1,0 +1,108 @@
+---
+title: API
+description: Every public member of PoliPage.AspNetCore with its signature, defaults and exact behavior.
+---
+
+The public API of `PoliPage.AspNetCore` is small: one registration extension, two result surfaces, two options-driven features and one option class. The source is in [`src/PoliPage.AspNetCore`](https://github.com/poli-page/asp/tree/main/src/PoliPage.AspNetCore). The client, `RenderInput` and the exception types belong to the SDK: see [SDK](../sdk/).
+
+## AddPoliPageAspNetCore
+
+`PoliPage.AspNetCore.ServiceCollectionExtensions`. Registers the SDK, the response factory, the startup warning for a malformed key and, by default, the error handler.
+
+```csharp
+IServiceCollection AddPoliPageAspNetCore(
+    this IServiceCollection services,
+    Action<PoliPageClientOptions> configureClient,
+    Action<PoliPageAspNetCoreOptions>? configureAspNetCore = null);
+
+IServiceCollection AddPoliPageAspNetCore(
+    this IServiceCollection services,
+    IConfiguration configuration,
+    Action<PoliPageAspNetCoreOptions>? configureAspNetCore = null);
+
+IServiceCollection AddPoliPageAspNetCore(
+    this IServiceCollection services,
+    IConfiguration configuration,
+    Action<PoliPageClientOptions> configureClient,
+    Action<PoliPageAspNetCoreOptions>? configureAspNetCore = null);
+```
+
+- With an `IConfiguration`, the SDK options bind from the section's top-level keys and `PoliPageAspNetCoreOptions` from its `AspNetCore` child. A callback runs after the binding.
+- Every argument is null-checked (`ArgumentNullException`).
+- It registers the SDK's `AddPoliPage` unless a `PoliPageClient` is already registered, and registers nothing a second time on a repeated call.
+- Host startup validates the SDK options (`ValidateOnStart`): `PoliPage: ApiKey is required.`, `PoliPage: MaxRetries must be ≥ 0.`, `PoliPage: RetryDelay must be > 0.`, `PoliPage: RequestTimeout must be > 0.`
+
+## PoliPageAspNetCoreOptions
+
+`PoliPage.AspNetCore.PoliPageAspNetCoreOptions`, a sealed class with four settable properties:
+
+```csharp
+string? DefaultCacheControl { get; set; }    // "no-store, private"; null omits the header
+bool SetNoSniffHeader { get; set; }          // true
+bool RegisterExceptionHandler { get; set; }  // true
+bool AddProblemDetailsService { get; set; }  // true
+```
+
+`RegisterExceptionHandler` and `AddProblemDetailsService` are read once, while `AddPoliPageAspNetCore` runs, so set them from the configuration or callback you pass to it. See [Configuration](../../concepts/configuration/).
+
+## PoliPageResults
+
+`PoliPage.AspNetCore.Results.PoliPageResults`, a static class of `IResult` factories for Minimal APIs. Each result also implements `IEndpointMetadataProvider`, so OpenAPI generators discover the status and content type.
+
+```csharp
+IResult Pdf(byte[] pdf, string? filename = null, bool inline = false);
+IResult PdfStream(Stream pdfStream, string? filename = null, bool inline = false);
+IResult Preview(string html);
+IResult DocumentRedirect(string presignedUrl);
+```
+
+- `Pdf` and `PdfStream` write `application/pdf`, the `Content-Disposition` when `filename` is set (`attachment`, or `inline` with `inline: true`), `Cache-Control` from `DefaultCacheControl` and `X-Content-Type-Options: nosniff` when `SetNoSniffHeader` is on. `PdfStream` copies the stream to the body and disposes it.
+- `Preview` writes `text/html; charset=utf-8` with the same cache and nosniff headers. It does not escape or sanitize the HTML.
+- `DocumentRedirect` answers `302` with `Location` set to the URL.
+- A `null` argument throws `ArgumentNullException`. `DocumentRedirect` throws `ArgumentException` for a null, empty or whitespace URL. A `filename` that is empty, or made only of control characters, throws `ArgumentException` when the result runs; other control characters are stripped.
+
+## PoliPageResponseFactory
+
+`PoliPage.AspNetCore.PoliPageResponseFactory`, a sealed singleton for MVC, built from `IOptions<PoliPageAspNetCoreOptions>`:
+
+```csharp
+FileContentResult Pdf(byte[] pdf, string? filename = null, bool inline = false);
+FileStreamResult PdfStream(Stream pdfStream, string? filename = null, bool inline = false);
+ContentResult Preview(string html);
+RedirectResult DocumentRedirect(string presignedUrl);
+```
+
+- `Pdf` and `PdfStream` return MVC file results with `application/pdf`. `filename` becomes `FileDownloadName` after control characters are stripped. `inline: true` clears it, so no `Content-Disposition` is written.
+- `Preview` returns a `ContentResult` with `text/html; charset=utf-8` and status 200.
+- `DocumentRedirect` returns a non-permanent `RedirectResult` (302). A null, empty or whitespace URL throws `ArgumentException`.
+- It does not set `Cache-Control` or `X-Content-Type-Options`; see [Response helpers](../../concepts/responses/).
+
+## UsePoliPageExceptionHandler
+
+`PoliPage.AspNetCore.ApplicationBuilderExtensions`. Places the error handler's middleware at this point of the pipeline. Not needed with the default wiring.
+
+```csharp
+IApplicationBuilder UsePoliPageExceptionHandler(this IApplicationBuilder app);
+```
+
+It throws `ArgumentNullException` for a null `app`. See [Errors](../../production/errors/).
+
+## MapPoliPageSmokeTest
+
+`PoliPage.AspNetCore.EndpointRouteBuilderExtensions`. Maps a `GET` endpoint that renders `getting-started/welcome` and answers it inline as `welcome.pdf`.
+
+```csharp
+IEndpointConventionBuilder MapPoliPageSmokeTest(
+    this IEndpointRouteBuilder endpoints,
+    string pattern = "/poli-page/smoke");
+```
+
+When the app has started and the endpoint carries neither an authorize nor an allow-anonymous attribute, one `Warning` (`EventId` 2001) is logged. Chain `.RequireAuthorization(...)` or `.AllowAnonymous()` to settle it.
+
+## Error handler behavior
+
+Not a public type: the handler is registered by `AddPoliPageAspNetCore` as an `IExceptionHandler`, a developer exception page filter and an `IStartupFilter` middleware. It answers a `PoliPageException` with the status of `ToPayload()` (500 when it has none) and `ToPayload()` as `application/json`. See [Errors](../../production/errors/).
+
+## SDK types
+
+The package does not re-export the SDK's types. `PoliPageClient`, `PoliPageClientOptions`, `RenderInput`, `PoliPageException` and the other exception classes come from the `PoliPage` namespace of the SDK, which the package references.

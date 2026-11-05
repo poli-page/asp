@@ -1,0 +1,58 @@
+---
+title: Observability
+description: Logs, event IDs, the tracing tag and the SDK's retry, error and request hooks that the ASP.NET Core integration exposes.
+---
+
+The integration logs through `ILogger` with fixed event IDs, tags the current `Activity` when it answers an error, and leaves the SDK's own hooks (`OnRetry`, `OnError`, `OnRequest`, `OnResponse`) open for you to wire to your metrics.
+
+## Log events
+
+Every message comes from one source-generated set, so the event IDs are stable:
+
+| `EventId` | Level | When |
+|---|---|---|
+| 1001 | `Warning` | A `PoliPageException` was thrown after the response had started: the handler cannot rewrite the status or headers and lets the exception through. |
+| 1002 | `Error` for a 5xx answer, `Warning` otherwise | The error handler answered a `PoliPageException`: `Poli Page error {Code} answered with HTTP {Status} (request id {RequestId}).` The request id reads `none` when the API sent none. |
+| 2001 | `Warning` | `MapPoliPageSmokeTest` is registered without `.RequireAuthorization(...)` or `.AllowAnonymous()`. Logged once at startup, from the category `PoliPage.AspNetCore.SmokeTest`. |
+| 3001 | `Warning` | `ApiKey` does not match `pp_{env}_{32 lowercase hex}`. The host still starts. The warning shows no part of the key. |
+
+The error log line (1002) is written once per answered error, with the exception, under a category that starts with `PoliPage.AspNetCore.ExceptionHandling`. It carries the code, status and request id, never the API key.
+
+## Tracing
+
+When the handler answers an error, it sets the current `Activity` to `Error` with the payload's message and adds the tag `polipage.error.code` with the payload's code. Any tracing pipeline that reads `Activity.Current` (OpenTelemetry included) sees the Poli Page error on the request's span.
+
+## SDK logger
+
+The SDK writes its own diagnostics to an `ILogger<PoliPageClient>`. `AddPoliPage` resolves one from the container when you set none, so the standard logging configuration of your app (levels, providers, filters) applies to the category `PoliPage.PoliPageClient`.
+
+## Hooks
+
+`PoliPageClientOptions` has four optional callbacks. Set them in the `configureClient` callback of `AddPoliPageAspNetCore`: delegates cannot come from `appsettings.json`.
+
+- `OnRetry(RetryEvent)`: before each retry's wait, with `Attempt` (the attempt about to start: `2` for the first retry), `Delay`, `StatusCode` and `Reason`.
+- `OnError(Exception)`: once, with the error an API call is about to throw: after the retries, at once for an error that is not retried, and with `aborted` when the caller cancelled.
+- `OnRequest(RequestEvent)`: before each HTTP attempt, with `Method`, `Url` and `Attempt`.
+- `OnResponse(ResponseEvent)`: after each successful (2xx) response once its body is read, with `Status`, `RequestId` and `DurationMs`.
+
+A callback that throws is swallowed by the SDK and does not break the request.
+
+## Example
+
+```csharp
+using PoliPage.AspNetCore;
+
+builder.Services.AddPoliPageAspNetCore(
+    builder.Configuration.GetSection("PoliPage"),
+    configureClient: opts =>
+    {
+        opts.OnRetry = e => Console.WriteLine($"PoliPage retry {e.Attempt} after {e.Delay}: {e.Reason}");
+        opts.OnError = ex => Console.Error.WriteLine($"PoliPage failure: {ex.Message}");
+        opts.OnResponse = e => Console.WriteLine($"PoliPage {e.Status} in {e.DurationMs} ms (request id {e.RequestId})");
+    });
+```
+
+## See also
+
+- [Errors](../errors/)
+- [Configuration](../../concepts/configuration/)

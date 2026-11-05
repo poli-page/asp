@@ -1,8 +1,9 @@
-# Minimal API patterns
+---
+title: Minimal APIs
+description: Route groups, IResult composition, typed bodies, OpenAPI, rate limiting and cancellation for endpoints that render Poli Page documents.
+---
 
-> Route groups, `IResult` composition, model binding, and authorization for endpoints that render Poli Page documents.
-
-## Why
+Route groups, `IResult` composition, model binding, and authorization for endpoints that render Poli Page documents.
 
 ASP.NET Core's Minimal APIs are the default for new projects on `net8.0`+ and the natural surface for "render a PDF and return it" endpoints. The patterns below show how to keep handlers small, push validation to model binding, and compose authorization/rate-limiting around a render group without per-endpoint boilerplate.
 
@@ -25,8 +26,8 @@ render.MapGet("/invoices/{id}.pdf", async (
     var pdf = await client.Render.PdfAsync(
         new RenderInput
         {
-            Project = "invoices",
-            Template = "default",
+            Project = "billing",
+            Template = "invoice",
             Data = new { InvoiceId = id },
         },
         cancellationToken: cancellationToken);
@@ -59,7 +60,7 @@ render.MapPost("/custom", async (
     var pdf = await client.Render.PdfAsync(
         new RenderInput
         {
-            Project = "invoices",
+            Project = "billing",
             Template = request.Template,
             Data = (object?)request.Data ?? new { }, // Data is required: {} when the caller sends none
         },
@@ -197,8 +198,56 @@ app.MapPoliPageSmokeTest()
 - **`TypedResults` and `PoliPageResults` are not interchangeable.** `TypedResults.File(...)` returns a typed `FileContentHttpResult` that ASP.NET serializes via OpenAPI; it encodes the filename with the same framework helper but keeps control characters. `PoliPageResults.Pdf(...)` is untyped and strips them. Pick based on whether your filenames can come from untrusted data.
 - **Per-endpoint authorization clobbers group policies if you specify both.** `render.RequireAuthorization("Renderer")` on the group + `.AllowAnonymous()` on a single endpoint disables auth for that endpoint only — useful for a public-by-design preview, dangerous if accidental.
 
-## Related
+## Example
 
-- [responses.md](responses.md) — header reference and the `PoliPageResponseFactory` MVC alternative.
-- [streaming.md](streaming.md) — when to switch from `Pdf` to `PdfStream`.
-- [testing.md](testing.md) — `WebApplicationFactory<Program>` and faking `PoliPageClient`.
+```csharp
+using Microsoft.AspNetCore.RateLimiting;
+using PoliPage;
+using PoliPage.AspNetCore;
+using PoliPage.AspNetCore.Results;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddPoliPageAspNetCore(builder.Configuration.GetSection("PoliPage"));
+builder.Services.AddRateLimiter(options =>
+    options.AddFixedWindowLimiter("render", limiter =>
+    {
+        limiter.PermitLimit = 60;
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.QueueLimit = 0;
+    }));
+
+var app = builder.Build();
+app.UseRateLimiter();
+
+var render = app.MapGroup("/render")
+    .RequireAuthorization("Renderer")
+    .RequireRateLimiting("render")
+    .WithTags("PoliPage");
+
+render.MapGet("/invoices/{id}.pdf", async (
+    string id,
+    PoliPageClient client,
+    CancellationToken cancellationToken) =>
+{
+    var pdf = await client.Render.PdfAsync(
+        new RenderInput
+        {
+            Project = "billing",
+            Template = "invoice",
+            Data = new { InvoiceId = id },
+        },
+        cancellationToken: cancellationToken);
+
+    return PoliPageResults.Pdf(pdf, $"invoice-{id}.pdf");
+});
+
+app.MapPoliPageSmokeTest().RequireAuthorization("Operator");
+
+app.Run();
+```
+
+## See also
+
+- [Response helpers](../responses/)
+- [Streaming](../streaming/)
+- [Testing](../../production/testing/)
