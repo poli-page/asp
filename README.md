@@ -49,7 +49,7 @@ Or add the reference directly to your `.csproj`:
 ```xml
 <ItemGroup>
   <!-- Brings in the PoliPage SDK 0.13.x. -->
-  <PackageReference Include="PoliPage.AspNetCore" Version="0.13.0" />
+  <PackageReference Include="PoliPage.AspNetCore" Version="0.13.1" />
 </ItemGroup>
 ```
 

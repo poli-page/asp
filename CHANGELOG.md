@@ -4,6 +4,8 @@ All notable changes to `PoliPage.AspNetCore` are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-11-05
+
 ### Added
 - Documentation site at <https://poli-page.github.io/asp/> (Astro Starlight, in `docs/`): install, quick start, configuration, client access, response helpers, Minimal API patterns, streaming, errors, observability, testing, API reference and migration. It replaces `docs/minimal-apis.md`, `docs/responses.md`, `docs/streaming.md` and `docs/testing.md`.
 - CodeQL workflow, and test coverage uploaded to Codecov from the Ubuntu / `net10.0` CI leg.
@@ -63,5 +65,6 @@ First release on NuGet. It requires the `PoliPage` SDK 0.13 (`[0.13.0,0.14.0)`) 
 - ASP.NET Core 8 (LTS) and 10 (LTS) only. No `netstandard2.0`, no .NET Framework. .NET Framework consumers use the bare `PoliPage` SDK.
 - `<IsAotCompatible>true</IsAotCompatible>` is set on `net10.0`. All logging routes through `[LoggerMessage]` source-gen.
 
-[Unreleased]: https://github.com/poli-page/asp/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/poli-page/asp/compare/v0.13.1...HEAD
+[0.13.1]: https://github.com/poli-page/asp/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/poli-page/asp/releases/tag/v0.13.0
