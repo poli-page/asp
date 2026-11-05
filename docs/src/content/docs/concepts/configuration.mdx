@@ -26,8 +26,8 @@ Every overload also takes an optional `Action<PoliPageAspNetCoreOptions>` that o
 | `PoliPage:RetryDelay` | `00:00:00.500` | `PoliPageClientOptions` | Base delay between retries (`TimeSpan`). |
 | `PoliPage:AspNetCore:RegisterExceptionHandler` | `true` | `PoliPageAspNetCoreOptions` | Turns on the error handler that answers a `PoliPageException` with its `ToPayload()` body (see [Errors](../../production/errors/)). `false` turns it off. |
 | `PoliPage:AspNetCore:AddProblemDetailsService` | `true` | `PoliPageAspNetCoreOptions` | Calls `services.AddProblemDetails()`, which a bare `app.UseExceptionHandler()` needs. Poli Page errors do not use it. |
-| `PoliPage:AspNetCore:DefaultCacheControl` | `no-store, private` | `PoliPageAspNetCoreOptions` | Default `Cache-Control` for `PoliPageResults`. `null` omits the header. `PoliPageResponseFactory` (MVC) does not read it. |
-| `PoliPage:AspNetCore:SetNoSniffHeader` | `true` | `PoliPageAspNetCoreOptions` | Adds `X-Content-Type-Options: nosniff` to `PoliPageResults` answers. `PoliPageResponseFactory` (MVC) does not read it. |
+| `PoliPage:AspNetCore:DefaultCacheControl` | `no-store, private` | `PoliPageAspNetCoreOptions` | Default `Cache-Control` for `PoliPageResults` and `PoliPageResponseFactory` answers. `null` omits the header. |
+| `PoliPage:AspNetCore:SetNoSniffHeader` | `true` | `PoliPageAspNetCoreOptions` | Adds `X-Content-Type-Options: nosniff` to `PoliPageResults` and `PoliPageResponseFactory` answers. |
 
 Validation runs at host startup via `ValidateOnStart`: a misconfigured app fails on `dotnet run`, not on the first SDK call. It rejects an empty `ApiKey` (`PoliPage: ApiKey is required.`), a negative `MaxRetries` (`PoliPage: MaxRetries must be ≥ 0.`), and a `RetryDelay` or `RequestTimeout` that is zero or negative (`PoliPage: RetryDelay must be > 0.`, `PoliPage: RequestTimeout must be > 0.`).
 

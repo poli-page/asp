@@ -71,11 +71,11 @@ public class InvoicesController(
 }
 ```
 
-`PoliPageResponseFactory.PdfStream` returns a `FileStreamResult` — ASP.NET Core's MVC layer handles the body copy and stream disposal. MVC writes `Content-Disposition` from `FileDownloadName` (RFC 6266 dual form); the factory strips control characters from the filename first.
+`PoliPageResponseFactory.PdfStream` returns a `FileStreamResult` — ASP.NET Core's MVC layer handles the body copy and stream disposal. MVC writes `Content-Disposition` from `FileDownloadName` (RFC 6266 dual form); the factory strips control characters from the filename first. The result also writes the cache and nosniff headers listed above.
 
 ## Inline rendering
 
-Pass `inline: true` to `PoliPageResults.PdfStream` to set `Content-Disposition: inline; filename=...` so the browser renders the PDF in-tab instead of triggering a download (on the MVC factory, `inline: true` writes no `Content-Disposition` at all):
+Pass `inline: true` to `PoliPageResults.PdfStream` or `PoliPageResponseFactory.PdfStream` to set `Content-Disposition: inline; filename=...` so the browser renders the PDF in-tab instead of triggering a download:
 
 ```csharp
 return PoliPageResults.PdfStream(stream, $"invoice-{id}.pdf", inline: true);

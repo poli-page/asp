@@ -15,7 +15,7 @@ Inject `PoliPageClient` and the request's `CancellationToken`, render with `clie
 
 ## Render from an MVC controller
 
-Inject `PoliPageClient` and `PoliPageResponseFactory`, and return `responses.Pdf(pdf, filename)` as an `IActionResult`. Both set `Content-Type: application/pdf` and an RFC 6266 `Content-Disposition` with the filename. `PoliPageResults` also sets `Cache-Control: no-store, private` and `X-Content-Type-Options: nosniff`; on the MVC factory, set those yourself (see [Response helpers](../../concepts/responses/)).
+Inject `PoliPageClient` and `PoliPageResponseFactory`, and return `responses.Pdf(pdf, filename)` as an `IActionResult`. Both set `Content-Type: application/pdf`, an RFC 6266 `Content-Disposition` with the filename, `Cache-Control: no-store, private` and `X-Content-Type-Options: nosniff` (see [Response helpers](../../concepts/responses/)).
 
 ## Example
 
