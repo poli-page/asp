@@ -14,7 +14,7 @@
     <PackageVersion Include="Roslynator.Analyzers" Version="4.13.1" />
 
     <!-- Build-time only -->
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.303" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.403" />
     <!-- 10.0.14 matches the M.E.* family the SDK transitively brings in via M.E.Http;
          a lower pin causes NU1605 (downgrade). Keep aligned with whatever
          floor sdk-csharp's Directory.Packages.props uses for the rest of M.E.*. -->
