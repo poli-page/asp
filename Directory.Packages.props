@@ -10,7 +10,7 @@
 
     <!-- Analyzers (match sdk-csharp set) -->
     <PackageVersion Include="Meziantou.Analyzer" Version="3.0.321" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.403" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="11.0.100" />
     <PackageVersion Include="Roslynator.Analyzers" Version="5.0.1" />
 
     <!-- Build-time only -->
