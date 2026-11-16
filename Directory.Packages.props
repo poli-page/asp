@@ -3,10 +3,10 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
-    <!-- The SDK of this package's minor: [0.13.0,0.14.0) is >= 0.13.0 and < 0.14, so restore picks
-         0.13.0 and the .nupkg declares the same range. The Release workflow checks it against the tag
+    <!-- The SDK of this package's minor: [0.15.0,0.16.0) is >= 0.15.0 and < 0.16, so restore picks
+         0.15.0 and the .nupkg declares the same range. The Release workflow checks it against the tag
          (scripts/check-release-versions.sh). -->
-    <PackageVersion Include="PoliPage" Version="[0.13.0,0.14.0)" />
+    <PackageVersion Include="PoliPage" Version="[0.15.0,0.16.0)" />
 
     <!-- Analyzers (match sdk-csharp set) -->
     <PackageVersion Include="Meziantou.Analyzer" Version="3.0.339" />
