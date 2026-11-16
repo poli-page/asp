@@ -26,3 +26,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # The project still targets net8.0. Runtime packages 11.x don't support net8.0,
+      # so stay on the 10.x line (serviced until Nov 2028) until net8.0 is dropped.
+      - dependency-name: "Microsoft.Extensions.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "System.Diagnostics.DiagnosticSource"
+        update-types: ["version-update:semver-major"]
