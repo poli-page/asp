@@ -35,7 +35,7 @@ This package wraps the Poli Page .NET SDK as an ASP.NET Core-native integration:
 
 - .NET 8.0 (LTS) or .NET 10.0 (LTS)
 - ASP.NET Core 8 or 10
-- The `PoliPage` SDK 0.13.x (installed with this package): the package requires `[0.13.0,0.14.0)`, `>= 0.13.0` and `< 0.14`
+- The `PoliPage` SDK 0.15.x (installed with this package): the package requires `[0.15.0,0.16.0)`, `>= 0.15.0` and `< 0.16`
 - A Poli Page API key from [app.poli.page](https://app.poli.page)
 
 ## Install
@@ -48,8 +48,8 @@ Or add the reference directly to your `.csproj`:
 
 ```xml
 <ItemGroup>
-  <!-- Brings in the PoliPage SDK 0.13.x. -->
-  <PackageReference Include="PoliPage.AspNetCore" Version="0.13.1" />
+  <!-- Brings in the PoliPage SDK 0.15.x. -->
+  <PackageReference Include="PoliPage.AspNetCore" Version="0.15.0" />
 </ItemGroup>
 ```
 
@@ -381,6 +381,7 @@ The full documentation is at <https://poli-page.github.io/asp/>:
 
 | Package | `PoliPage` SDK | Poli Page API | .NET | ASP.NET Core |
 |---|---|---|---|---|
+| 0.15.x | 0.15.x | 0.15 | 8.0 LTS / 10.0 LTS | 8.0 / 10.0 |
 | 0.13.x | 0.13.x | 0.13 | 8.0 LTS / 10.0 LTS | 8.0 / 10.0 |
 
 The package shares its major.minor with the Poli Page API and requires the `PoliPage` SDK of the same minor (see [Versions](CONTRIBUTING.md#versions)). It follows .NET's own LTS window. Non-LTS runtimes (9, 11) are best-effort but not in the CI matrix.

@@ -9,7 +9,7 @@ The ASP.NET Core integration ships as the `PoliPage.AspNetCore` package on NuGet
 
 - .NET 8.0 (LTS) or .NET 10.0 (LTS)
 - ASP.NET Core 8 or 10
-- The `PoliPage` SDK 0.13.x, installed with this package: the package requires `[0.13.0,0.14.0)`, which NuGet reads as `>= 0.13.0` and `< 0.14`
+- The `PoliPage` SDK 0.15.x, installed with this package: the package requires `[0.15.0,0.16.0)`, which NuGet reads as `>= 0.15.0` and `< 0.16`
 - A Poli Page API key, from [app.poli.page](https://app.poli.page)
 
 CI tests `net8.0` and `net10.0` on Ubuntu and Windows, and `net10.0` on macOS. Non-LTS runtimes (9, 11) are best-effort and not in the matrix.
@@ -24,8 +24,8 @@ Or add the reference to your `.csproj`:
 
 ```xml
 <ItemGroup>
-  <!-- Brings in the PoliPage SDK 0.13.x. -->
-  <PackageReference Include="PoliPage.AspNetCore" Version="0.13.1" />
+  <!-- Brings in the PoliPage SDK 0.15.x. -->
+  <PackageReference Include="PoliPage.AspNetCore" Version="0.15.0" />
 </ItemGroup>
 ```
 
