@@ -11,7 +11,7 @@ namespace PoliPage.AspNetCore.IntegrationTests.Contract;
 internal sealed class ContractFile
 {
     /// <summary>The contract.json layout this harness reads.</summary>
-    public const int FormatVersion = 1;
+    public const int FormatVersion = 2;
 
     public const string SkipFileName = "contract-skip.json";
 
