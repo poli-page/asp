@@ -4,7 +4,7 @@ All notable changes to `PoliPage.AspNetCore` are documented here. Format follows
 
 ## [Unreleased]
 
-## [0.15.0] - 2026-11-16
+## [0.15.0] - 2026-11-17
 
 Requires the `PoliPage` SDK 0.15 (`[0.15.0,0.16.0)`) and passes the Poli Page API contract v0.15.0. There is no 0.14: the package shares its major.minor with the Poli Page API and had nothing to ship for that minor.
 
